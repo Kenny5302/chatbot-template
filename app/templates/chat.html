@@ -1,33 +1,42 @@
 <!doctype html>
-<html lang="en">
+{% set S = ui.strings[lang] %}
+<html lang="{{ lang }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Chat with {{ biz.name }}</title>
+  <title>{{ S.chat_with }}</title>
   <link rel="stylesheet" href="/static/chat.css">
   <style>:root { --primary: {{ biz.brand.primary }}; --accent: {{ biz.brand.accent }}; }</style>
 </head>
 <body class="{{ 'embed' if embed else '' }}">
-  <main class="chat" data-slug="{{ biz.slug }}" data-phone="{{ biz.phone }}" data-max="{{ max_chars }}">
+  <main class="chat" data-slug="{{ biz.slug }}" data-default-lang="{{ lang }}">
     <header class="bar">
-      {% if biz.brand.logo_url %}<img class="logo" src="{{ biz.brand.logo_url }}" alt="">{% endif %}
-      <div class="title">
-        <strong>{{ biz.name }}</strong>
-        <span>Virtual assistant (AI)</span>
+      <div class="top">
+        {% if biz.brand.logo_url %}<img class="logo" src="{{ biz.brand.logo_url }}" alt="">{% endif %}
+        <div class="title">
+          <strong>{{ biz.name }}</strong>
+          <span id="subtitle">{{ S.subtitle }}</span>
+        </div>
+        <a class="call" id="call" href="tel:{{ biz.phone }}">{{ S.call }}</a>
+        {% if embed %}<button type="button" id="close" class="close" aria-label="{{ S.close }}">&#10005;</button>{% endif %}
       </div>
-      <a class="call" href="tel:{{ biz.phone }}">Call</a>
-      {% if embed %}<button type="button" id="close" class="close" aria-label="Close chat">&#10005;</button>{% endif %}
+      {% if ui.order|length > 1 %}
+      <div class="langs" id="langs" role="group" aria-label="{{ S.language_label }}">
+        {% for code in ui.order %}<button type="button" class="lang" data-lang="{{ code }}" lang="{{ code }}" aria-pressed="{{ 'true' if code == lang else 'false' }}">{{ ui.labels[code] }}</button>{% endfor %}
+      </div>
+      {% endif %}
     </header>
 
     <section id="log" class="log" aria-live="polite">
-      <div class="msg bot">{{ greetings[0] }}{% if greetings|length > 1 %}<div class="langs">{{ greetings[1] }}</div>{% endif %}</div>
+      <div class="msg bot" id="greeting">{{ S.greeting }}</div>
     </section>
 
     <form id="form" class="composer" autocomplete="off">
-      <textarea id="input" rows="1" maxlength="{{ max_chars }}" placeholder="Type your message..." aria-label="Message"></textarea>
-      <button type="submit" id="send">Send</button>
+      <textarea id="input" rows="1" maxlength="{{ max_chars }}" placeholder="{{ S.placeholder }}" aria-label="{{ S.message_label }}"></textarea>
+      <button type="submit" id="send">{{ S.send }}</button>
     </form>
   </main>
+  <script type="application/json" id="i18n">{{ ui | tojson }}</script>
   <script src="/static/chat.js"></script>
 </body>
 </html>

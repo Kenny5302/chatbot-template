@@ -15,8 +15,8 @@ from app.businesses import Business, load_all
 from app.chat import ChatService
 from app.config import Settings
 from app.emailer import GmailEmailer
+from app.i18n import default_language, pick_language, text as ui_text, ui_for
 from app.leads import LeadService
-from app.prompts import greeting_lines
 from app.ratelimit import RateLimiter, client_ip, visitor_hash
 from app.storage import FileStorage
 
@@ -28,6 +28,7 @@ MAX_MESSAGE_CHARS = 1000
 class ChatRequest(BaseModel):
     message: str = Field(max_length=MAX_MESSAGE_CHARS)
     conversation_id: str | None = Field(default=None, max_length=40)
+    language: str | None = Field(default=None, max_length=8)  # the customer's chosen interface language
 
     @field_validator("message")
     @classmethod
@@ -113,10 +114,14 @@ def create_app(
     @app.get("/b/{slug}", response_class=HTMLResponse)
     def chat_page(request: Request, slug: str, embed: int = 0):
         biz = get_business(slug)
-        return templates.TemplateResponse(
-            request, "chat.html", {"biz": biz, "greetings": greeting_lines(biz), "embed": bool(embed),
-                                   "max_chars": MAX_MESSAGE_CHARS},
+        lang = default_language(biz, request.headers.get("accept-language", ""))
+        response = templates.TemplateResponse(
+            request, "chat.html",
+            {"biz": biz, "embed": bool(embed), "max_chars": MAX_MESSAGE_CHARS, "lang": lang,
+             "ui": ui_for(biz, MAX_MESSAGE_CHARS)},
         )
+        response.headers["Vary"] = "Accept-Language"  # the first language shown depends on the browser
+        return response
 
     @app.get("/b/{slug}/widget.js")
     def widget(request: Request, slug: str):
@@ -127,7 +132,12 @@ def create_app(
         else:
             # Local dev only: derive from the request, and make sure nothing caches it.
             base, cache = str(request.base_url).rstrip("/"), "no-store"
-        js = templates.get_template("widget.js").render(biz=biz, chat_url=f"{base}/b/{slug}?embed=1")
+        ui = ui_for(biz)
+        js = templates.get_template("widget.js").render(
+            biz=biz, chat_url=f"{base}/b/{slug}?embed=1",
+            labels={code: strings["chat_with"] for code, strings in ui["strings"].items()},
+            default_lang=default_language(biz, ""),
+        )
         return Response(js, media_type="application/javascript", headers={"Cache-Control": cache, "Vary": "Host"})
 
     @app.post("/api/{slug}/chat")
@@ -140,10 +150,12 @@ def create_app(
         retry_after = limiter.check(f"{slug}:{ip}")
         if retry_after:
             return JSONResponse(
-                {"error": f"You're sending messages quickly. Please wait a bit, or call us at {biz.phone}."},
+                {"error": ui_text(pick_language(biz, body.language), "error_rate_limit", biz)},
                 status_code=429, headers={"Retry-After": str(retry_after)},
             )
-        result = chat.handle(biz, body.message, body.conversation_id, visitor_hash(ip, settings.visitor_hash_salt))
+        result = chat.handle(
+            biz, body.message, body.conversation_id, visitor_hash(ip, settings.visitor_hash_salt), body.language
+        )
         return {"conversation_id": result.conversation_id, "reply": result.reply, "lead_saved": result.lead_saved}
 
     return app

@@ -6,8 +6,16 @@
 
   var chatUrl = {{ chat_url | tojson }};
   var color = {{ biz.brand.primary | tojson }};
-  var label = {{ ('Chat with ' ~ biz.name) | tojson }};
+  var labels = {{ labels | tojson }};          // "Chat with ..." in each language the business supports
   var mobile = window.matchMedia('(max-width: 480px)');
+
+  // The bubble label follows the visitor's browser language (the chat inside remembers their own choice).
+  var label = labels[{{ default_lang | tojson }}];
+  var prefs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+  for (var i = 0; i < prefs.length; i++) {
+    var code = String(prefs[i] || '').toLowerCase().split('-')[0];
+    if (labels[code]) { label = labels[code]; break; }
+  }
 
   var button = document.createElement('button');
   button.setAttribute('aria-label', label);

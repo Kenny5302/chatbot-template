@@ -8,8 +8,9 @@ import anthropic
 
 from app.businesses import Business
 from app.hours import status_line
+from app.i18n import pick_language, text as ui_text
 from app.leads import LeadService
-from app.prompts import build_system_prompt, language_hint
+from app.prompts import build_system_prompt, language_note
 from app.storage import FileStorage, valid_conversation_id
 
 log = logging.getLogger(__name__)
@@ -51,24 +52,21 @@ class ChatResult:
     lead_saved: bool = False
 
 
-def fallback_reply(business: Business) -> str:
-    return f"Sorry, I'm having trouble right now. Please call us at {business.phone} and we'll be glad to help."
+def fallback_reply(business: Business, language: str = "en") -> str:
+    return ui_text(language, "reply_fallback", business)
 
 
-def limit_reply(business: Business) -> str:
-    return (
-        "We've been chatting for a while, so let me connect you with the team. "
-        f"Please call us at {business.phone}."
-    )
+def limit_reply(business: Business, language: str = "en") -> str:
+    return ui_text(language, "reply_turn_limit", business)
 
 
-def off_topic_reply(business: Business) -> str:
-    return f"I can only help with questions about {business.name}. Can I help with our services, hours, or a callback?"
+def off_topic_reply(business: Business, language: str = "en") -> str:
+    return ui_text(language, "reply_off_topic", business)
 
 
-def guard_reply(text: str, business: Business) -> str:
+def guard_reply(text_: str, business: Business, language: str = "en") -> str:
     """Last line of defense: the bot never sends code, whatever the model did."""
-    return off_topic_reply(business) if "```" in text else text
+    return off_topic_reply(business, language) if "```" in text_ else text_
 
 
 def _text_of(blocks: list[dict[str, Any]]) -> str:
@@ -82,27 +80,30 @@ class ChatService:
         self.leads = leads
         self.max_user_turns = max_user_turns
 
-    def handle(self, business: Business, message: str, conversation_id: str | None, visitor: str) -> ChatResult:
+    def handle(
+        self, business: Business, message: str, conversation_id: str | None, visitor: str, language: str | None = None
+    ) -> ChatResult:
+        language = pick_language(business, language)
         conv_id = conversation_id if valid_conversation_id(conversation_id) else self.storage.new_conversation_id()
         assert conv_id is not None
         history = self.storage.load_history(business.slug, conv_id)
         user_turns = sum(1 for m in history if m["role"] == "user" and isinstance(m["content"][0], dict) and m["content"][0].get("type") == "text")
 
         if user_turns >= self.max_user_turns:
-            reply = limit_reply(business)
+            reply = limit_reply(business, language)
             self.storage.append_records(business.slug, conv_id, [
-                {"role": "user", "text": message, "visitor": visitor},
+                {"role": "user", "text": message, "visitor": visitor, "language": language},
                 {"role": "assistant", "text": reply, "note": "turn limit reached"},
             ])
             return ChatResult(conv_id, reply)
 
         user_content = [
             {"type": "text", "text": message},
-            {"type": "text", "text": status_line(business, language_hint=language_hint(message))},
+            {"type": "text", "text": status_line(business, language_hint=language_note(language, message))},
         ]
         messages = history + [{"role": "user", "content": user_content}]
         records: list[dict[str, Any]] = [
-            {"role": "user", "text": message, "content": user_content, "visitor": visitor}
+            {"role": "user", "text": message, "content": user_content, "visitor": visitor, "language": language}
         ]
         lead_saved = False
         reply = ""
@@ -151,19 +152,19 @@ class ChatService:
                 if resp.stop_reason == "max_tokens" and not text and max_tokens < RETRY_MAX_TOKENS:
                     max_tokens = RETRY_MAX_TOKENS  # thinking ate the budget; retry once with more room
                     continue
-                guarded = guard_reply(text, business)
+                guarded = guard_reply(text, business, language)
                 if guarded != text:
                     text, blocks = guarded, [{"type": "text", "text": guarded}]  # keep code out of history too
                 if resp.stop_reason == "refusal" or not text:
                     log.warning("No usable reply (stop_reason=%s) for %s", resp.stop_reason, business.slug)
-                    text = fallback_reply(business)
+                    text = fallback_reply(business, language)
                     blocks = [{"type": "text", "text": text}]  # don't keep a refused/empty turn in history
                 reply = text
                 records.append({"role": "assistant", "text": text, "content": blocks, "usage": usage,
                                 "stop_reason": resp.stop_reason})
                 break
             else:
-                reply = fallback_reply(business)
+                reply = fallback_reply(business, language)
                 records.append({"role": "assistant", "text": reply, "content": [{"type": "text", "text": reply}],
                                 "note": "tool loop limit"})
         except anthropic.APIError as e:
@@ -171,10 +172,10 @@ class ChatService:
             kind = type(e).__name__
             log.error("Claude API error for %s: %s", business.slug, kind)
             self.storage.append_records(business.slug, conv_id, [
-                {"role": "user", "text": message, "visitor": visitor},
-                {"role": "assistant", "text": fallback_reply(business), "error": kind},
+                {"role": "user", "text": message, "visitor": visitor, "language": language},
+                {"role": "assistant", "text": fallback_reply(business, language), "error": kind},
             ])
-            return ChatResult(conv_id, fallback_reply(business))
+            return ChatResult(conv_id, fallback_reply(business, language))
 
         self.storage.append_records(business.slug, conv_id, records)
         return ChatResult(conv_id, reply, lead_saved)

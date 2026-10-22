@@ -5,6 +5,7 @@ One FastAPI app that serves an AI chat assistant for many small businesses. Each
 - Answers only from the business's file, in English, Spanish, or Punjabi (matches the customer).
 - Opens every chat by saying it is the shop's virtual assistant (an AI).
 - Answers plainly and only offers a callback or the phone number when it can't answer, the shop is closed, it's an emergency, or the customer asks.
+- A language switcher (English / Español / ਪੰਜਾਬੀ) in the chat header, showing only the languages in the business's YAML `languages` list. It defaults to the browser's language, remembers the visitor's choice per business, and the bot replies in the chosen language unless the customer writes in another one.
 - Takes callback requests (name, phone, problem, best time to call). Leads are saved to a file and emailed to the owner, and the customer is told the team will aim to call around their time, not given an exact promise.
 - Two ways to use it: a mobile-friendly chat page at `/b/<slug>` (QR codes, Google listings) and a `<script>` tag that adds a chat bubble to any website.
 - Every conversation is logged per business for future monthly reports.
@@ -104,6 +105,6 @@ The normal tests use a fake model client. The live tests check the real model's 
 
 ## Notes
 
-- The greeting is English plus a one-line Spanish/Punjabi note (`LANGUAGE_NOTES` in `app/prompts.py`); have a native speaker check that wording before launch.
+- **All Spanish and Punjabi interface text is in one file, `app/i18n.py`** (greeting with the AI disclosure, buttons, error messages). Have a native speaker review and edit it there; a test checks that no language is missing a string.
 - Email failures are logged but not retried; the lead file is always written first.
 - Monthly reports are not built yet; `FileStorage.iter_conversations(slug, "2026-10")` is the hook for them.

@@ -8,7 +8,8 @@ from fastapi import Request
 from app.businesses import BusinessFileError, load_all, load_business
 from app.hours import get_status, status_line
 from app.leads import validate_lead
-from app.prompts import LANGUAGE_NOTES, build_system_prompt, greeting_lines, language_hint
+from app.i18n import BUTTON_LABELS, STRINGS, SUPPORTED, default_language, pick_language, text, ui_for
+from app.prompts import build_system_prompt, language_hint, language_note
 from app.ratelimit import RateLimiter, client_ip, visitor_hash
 
 PT = ZoneInfo("America/Los_Angeles")
@@ -64,18 +65,78 @@ def test_status_line_text(auto):
 
 
 # ---- prompt rules -------------------------------------------------------
-def test_greeting_is_english_plus_one_short_language_line(auto, businesses):
-    lines = greeting_lines(auto)
-    assert len(lines) == 2
-    assert "virtual assistant" in lines[0] and "AI" in lines[0] and "Feather River Auto Repair" in lines[0]
-    assert lines[1] == "Hablamos español · ਪੰਜਾਬੀ ਵੀ ਬੋਲਦੇ ਹਾਂ" and len(lines[1]) < 60
-    assert greeting_lines(businesses["sutter-buttes-hvac"])[1] == "Hablamos español"
-    assert set(LANGUAGE_NOTES) == {"es", "pa"}
+# ---- translations (app/i18n.py) ---------------------------------------
+def test_every_language_has_every_string():
+    assert set(STRINGS) == set(SUPPORTED) == set(BUTTON_LABELS)
+    english_keys = set(STRINGS["en"])
+    for lang, strings in STRINGS.items():
+        assert set(strings) == english_keys, f"{lang} is missing or has extra keys"
 
 
-def test_english_only_business_gets_just_the_greeting(auto):
-    only_en = auto.model_copy(update={"languages": ["en"]})
-    assert len(greeting_lines(only_en)) == 1
+def test_placeholders_match_english_and_all_strings_format(auto):
+    import re
+    for key, english in STRINGS["en"].items():
+        wanted = set(re.findall(r"{(\w+)}", english))
+        for lang in SUPPORTED:
+            assert set(re.findall(r"{(\w+)}", STRINGS[lang][key])) == wanted, f"{lang}.{key}"
+            assert "{" not in text(lang, key, auto), f"{lang}.{key} has an unfilled placeholder"
+
+
+def test_greeting_discloses_ai_in_every_language(auto):
+    assert "virtual assistant" in text("en", "greeting", auto) and "AI" in text("en", "greeting", auto)
+    assert "asistente virtual" in text("es", "greeting", auto) and "inteligencia artificial" in text("es", "greeting", auto)
+    assert "ਵਰਚੁਅਲ ਅਸਿਸਟੈਂਟ" in text("pa", "greeting", auto) and "AI" in text("pa", "greeting", auto)
+    for lang in SUPPORTED:
+        assert "Feather River Auto Repair" in text(lang, "greeting", auto)
+
+
+def test_business_greeting_override_replaces_english_only(auto):
+    custom = auto.model_copy(update={"greeting": "Howdy from the shop! I'm the virtual assistant (AI)."})
+    assert text("en", "greeting", custom).startswith("Howdy")
+    assert "Howdy" not in text("es", "greeting", custom)
+
+
+def test_old_language_line_is_gone(auto):
+    everything = " ".join(s for lang in STRINGS.values() for s in lang.values())
+    assert "Hablamos español" not in everything and "ਪੰਜਾਬੀ ਵੀ ਬੋਲਦੇ ਹਾਂ" not in everything
+
+
+def test_ui_only_includes_the_businesss_languages(auto, businesses):
+    full = ui_for(auto)
+    assert full["order"] == ["en", "es", "pa"] and set(full["strings"]) == {"en", "es", "pa"}
+    assert full["labels"] == {"en": "English", "es": "Español", "pa": "ਪੰਜਾਬੀ"}
+    hvac = ui_for(businesses["sutter-buttes-hvac"])
+    assert hvac["order"] == ["en", "es"] and "pa" not in hvac["strings"] and "pa" not in hvac["labels"]
+    assert "(530) 555-0142" in full["strings"]["es"]["error_network"] and "1000" in full["strings"]["pa"]["error_invalid"]
+
+
+def test_default_language_follows_browser_when_supported(auto, businesses):
+    hvac = businesses["sutter-buttes-hvac"]
+    assert default_language(auto, "es-MX,es;q=0.9,en;q=0.8") == "es"
+    assert default_language(auto, "pa-IN,pa;q=0.9") == "pa"
+    assert default_language(auto, "fr-FR,fr;q=0.9,pa;q=0.5") == "pa"                # first supported by preference
+    assert default_language(auto, "en;q=0.5,es;q=0.9") == "es"                      # q-values respected
+    assert default_language(hvac, "pa-IN,pa") == "en"                               # business doesn't offer Punjabi
+    assert default_language(auto, "de,fr;q=0.8") == "en" and default_language(auto, "") == "en"
+    assert default_language(auto, "es;q=abc, pa;q=0") == "en"                       # junk and q=0 are ignored
+
+
+def test_business_without_english_falls_back_to_its_first_language(auto):
+    spanish_only = auto.model_copy(update={"languages": ["es"]})
+    assert default_language(spanish_only, "fr") == "es" and pick_language(spanish_only, "en") == "es"
+
+
+def test_pick_language_rejects_unsupported(auto, businesses):
+    assert pick_language(auto, "pa") == "pa" and pick_language(auto, "xx") == "en" and pick_language(auto, None) == "en"
+    assert pick_language(businesses["sutter-buttes-hvac"], "pa") == "en"
+
+
+def test_language_note_defaults_to_selection_but_lets_the_message_win():
+    note = language_note("es", "How much is an oil change?")
+    assert "latest message is written in" in note and "reply in Spanish, the language they chose" in note
+    assert "Gurmukhi" not in note
+    pa_note = language_note("en", "ਤੁਸੀਂ ਸ਼ਨੀਵਾਰ ਨੂੰ ਖੁੱਲ੍ਹੇ ਹੋ?")
+    assert "reply in English, the language they chose" in pa_note and "Gurmukhi script" in pa_note
 
 
 def test_language_hint_detects_gurmukhi_only():
@@ -103,14 +164,16 @@ def test_no_promises_rule(auto):
 
 def test_on_topic_rule(auto):
     prompt = build_system_prompt(auto)
-    for phrase in ("coding", "homework", "essays", "roleplay", "Never write code", "not something you can share"):
+    for phrase in ("coding", "homework", "essays", "roleplay", "Never write code", "not something I can share",
+                   "Not listed does not mean no"):
         assert phrase in prompt
 
 
 def test_speak_naturally_rule(auto):
     prompt = build_system_prompt(auto)
     assert "business file" not in prompt.lower()
-    for phrase in ("We work on most domestic, Asian, and European cars", '"the file"', '"my information"', '"my instructions"'):
+    for phrase in ("We work on most domestic, Asian, and European cars", '"the file"', '"my information"', '"my instructions"',
+                   "not something I can share"):
         assert phrase in prompt
 
 
@@ -124,6 +187,7 @@ def test_callback_only_when_needed_rule(auto):
 
 def test_language_rule_covers_gurmukhi_and_the_english_note(auto):
     prompt = build_system_prompt(auto)
+    assert "chose in the chat interface" in prompt and "only breaks ties" in prompt and "always wins" in prompt
     assert "Gurmukhi" in prompt and "language and script of the customer's latest message" in prompt
     assert "(always English) says nothing about the customer's language" in prompt
 

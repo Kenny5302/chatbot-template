@@ -154,9 +154,133 @@ def test_chat_page_has_disclosure_and_brand(make_client):
     client, _ = make_client([])
     html = client.get("/b/feather-river-auto").text
     assert "virtual assistant" in html and "#1d3f72" in html
-    assert "Hablamos español" in html and "ਪੰਜਾਬੀ ਵੀ ਬੋਲਦੇ ਹਾਂ" in html and "¡Hola!" not in html
+    assert "Hablamos español" not in html and "ਪੰਜਾਬੀ ਵੀ ਬੋਲਦੇ ਹਾਂ" not in html     # the buttons replace that line
     assert 'id="close"' not in html
     assert 'id="close"' in client.get("/b/feather-river-auto?embed=1").text
+
+
+def buttons(html):
+    import re
+    return re.findall(r'<button type="button" class="lang" data-lang="(\w+)" lang="\w+" aria-pressed="(true|false)">([^<]+)</button>', html)
+
+
+def test_language_buttons_only_for_supported_languages(make_client):
+    client, _ = make_client([])
+    assert buttons(client.get("/b/feather-river-auto").text) == [
+        ("en", "true", "English"), ("es", "false", "Español"), ("pa", "false", "ਪੰਜਾਬੀ")]
+    hvac = client.get("/b/sutter-buttes-hvac").text
+    assert [(c, label) for c, _, label in buttons(hvac)] == [("en", "English"), ("es", "Español")]
+    assert "ਪੰਜਾਬੀ" not in hvac                      # no Punjabi button and no Punjabi strings in the page
+
+
+def test_buttons_are_real_buttons_in_a_labelled_group(make_client):
+    html = make_client([])[0].get("/b/feather-river-auto").text
+    assert '<div class="langs" id="langs" role="group" aria-label="Language">' in html
+    assert html.count("aria-pressed=") == 3
+
+
+def test_page_language_follows_accept_language(make_client):
+    client, _ = make_client([])
+    es = client.get("/b/feather-river-auto", headers={"Accept-Language": "es-MX,es;q=0.9"}).text
+    assert '<html lang="es">' in es and "inteligencia artificial" in es and "Escriba su mensaje..." in es
+    assert ">Enviar</button>" in es and ">Llamar</a>" in es and "Asistente virtual (IA)" in es
+    assert ("es", "true", "Español") in buttons(es) and ("en", "false", "English") in buttons(es)
+    pa = client.get("/b/feather-river-auto", headers={"Accept-Language": "pa-IN"}).text
+    assert '<html lang="pa">' in pa and "ਆਪਣਾ ਸੁਨੇਹਾ ਲਿਖੋ..." in pa and ">ਭੇਜੋ</button>" in pa and ">ਕਾਲ ਕਰੋ</a>" in pa
+    en = client.get("/b/feather-river-auto").text
+    assert '<html lang="en">' in en and "Type your message..." in en and ">Send</button>" in en
+
+
+def test_unsupported_browser_language_falls_back_to_english(make_client):
+    r = make_client([])[0].get("/b/sutter-buttes-hvac", headers={"Accept-Language": "pa-IN,pa"})
+    assert '<html lang="en">' in r.text and r.headers["vary"] == "Accept-Language"
+
+
+def test_page_embeds_all_strings_for_the_script(make_client):
+    import json, re
+    html = make_client([])[0].get("/b/feather-river-auto").text
+    found = re.search(r'<script type="application/json" id="i18n">(.*?)</script>', html, re.S)
+    assert found
+    data = json.loads(found.group(1))
+    assert data["order"] == ["en", "es", "pa"]
+    assert "(530) 555-0142" in data["strings"]["pa"]["error_network"] and "1000" in data["strings"]["es"]["error_invalid"]
+
+
+def test_single_language_business_has_no_switcher(make_client, tmp_path):
+    biz_dir = tmp_path / "biz"
+    biz_dir.mkdir()
+    (biz_dir / "only-en.yaml").write_text(
+        "name: Solo Shop\nphone: '(530) 555-0100'\nlead_email: a@b.co\nlocation: {address: x}\nhours: {mon: '9:00-17:00'}\n")
+    client, _ = make_client([], businesses_dir=biz_dir)
+    html = client.get("/b/only-en").text
+    assert 'class="lang"' not in html and "Solo Shop&#39;s virtual assistant" in html
+
+
+def test_selected_language_is_sent_to_the_model_and_logged(make_client, storage):
+    client, fake = make_client([text_msg("Abrimos a las 8.")])
+    r = client.post(URL, json={"message": "¿A qué hora abren?", "language": "es"}).json()
+    note = fake.calls[0]["messages"][0]["content"][1]["text"]
+    assert "reply in Spanish, the language they chose" in note and "latest message is written in" in note
+    assert storage.load_records("feather-river-auto", r["conversation_id"])[0]["language"] == "es"
+
+
+def test_english_message_under_spanish_choice_still_carries_the_rule(make_client):
+    client, fake = make_client([text_msg("An oil change is estimated at...")])
+    client.post(URL, json={"message": "How much is an oil change?", "language": "es"})
+    note = fake.calls[0]["messages"][0]["content"][1]["text"]
+    assert "Reply in the language the customer's latest message is written in" in note and "Only if the message is too short" in note
+
+
+def test_missing_or_unsupported_language_defaults_to_english(make_client):
+    client, fake = make_client([text_msg("ok"), text_msg("ok"), text_msg("ok")])
+    client.post(URL, json={"message": "hi"})
+    client.post(URL, json={"message": "hi", "language": "xx"})
+    client.post("/api/sutter-buttes-hvac/chat", json={"message": "hi", "language": "pa"})   # HVAC has no Punjabi
+    assert all("reply in English, the language they chose" in c["messages"][0]["content"][1]["text"] for c in fake.calls)
+
+
+def test_server_messages_follow_the_chosen_language(make_client):
+    # API failure
+    client, _ = make_client([api_error(), api_error()])
+    es = client.post(URL, json={"message": "hola", "language": "es"}).json()["reply"]
+    pa = client.post(URL, json={"message": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ", "language": "pa"}).json()["reply"]
+    assert "Lo siento" in es and "(530) 555-0142" in es
+    assert "ਮਾਫ਼ ਕਰਨਾ" in pa and "(530) 555-0142" in pa
+
+
+def test_code_guard_reply_is_localized(make_client):
+    client, _ = make_client([text_msg("```python\nprint(1)\n```")])
+    reply = client.post(URL, json={"message": "write code", "language": "es"}).json()["reply"]
+    assert "```" not in reply and "Solo puedo ayudar" in reply
+
+
+def test_turn_limit_message_is_localized(make_client):
+    client, _ = make_client([text_msg("ok")], max_user_turns=1)
+    cid = client.post(URL, json={"message": "one", "language": "es"}).json()["conversation_id"]
+    reply = client.post(URL, json={"message": "two", "language": "es", "conversation_id": cid}).json()["reply"]
+    assert "Hemos conversado" in reply
+
+
+def test_rate_limit_message_is_localized(make_client):
+    client, _ = make_client([text_msg("ok")] * 3, rate_per_minute=1)
+    client.post(URL, json={"message": "1", "language": "pa"})
+    blocked = client.post(URL, json={"message": "2", "language": "pa"})
+    assert blocked.status_code == 429 and "ਤੇਜ਼ੀ" in blocked.json()["error"]
+
+
+def widget_labels(js):
+    import json, re
+    found = re.search(r"var labels = (\{.*?\});", js)
+    assert found
+    return json.loads(found.group(1))   # the script embeds them as JSON
+
+
+def test_widget_label_is_available_in_each_supported_language(make_client):
+    client, _ = make_client([])
+    labels = widget_labels(client.get("/b/feather-river-auto/widget.js").text)
+    assert labels == {"en": "Chat with Feather River Auto Repair", "es": "Chatear con Feather River Auto Repair",
+                      "pa": "Feather River Auto Repair ਨਾਲ ਚੈਟ ਕਰੋ"}
+    assert set(widget_labels(client.get("/b/sutter-buttes-hvac/widget.js").text)) == {"en", "es"}
 
 
 def test_widget_script(make_client):

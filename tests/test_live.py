@@ -32,8 +32,8 @@ def chat(tmp_path):
     return ChatService(anthropic.Anthropic(api_key=settings.anthropic_api_key), storage, leads)
 
 
-def ask(chat, business, text):
-    return chat.handle(business, text, None, "test").reply
+def ask(chat, business, text, language=None):
+    return chat.handle(business, text, None, "test", language).reply
 
 
 def letters(text, lo, hi):
@@ -103,9 +103,11 @@ def test_plain_question_gets_no_callback_pitch_or_phone_number(chat, auto):
     assert "555-0142" not in reply and not re.search(r"call(back)?|phone|message", reply, re.I), reply
 
 
-def test_unknown_answer_offers_a_message(chat, auto):
-    reply = ask(chat, auto, "Do you sell motorcycle helmets?")
-    assert re.search(r"details|message|call|name", reply, re.I), reply
+@pytest.mark.parametrize("question", ["Do you offer towing service?", "Do you do windshield replacement?", "Can you detail my car?"])
+def test_unlisted_service_is_unknown_not_a_no(chat, auto, question):
+    reply = ask(chat, auto, question)    # none of these is in the business file
+    assert not re.search(r"\b(no|sorry)\b[^.]{0,20}we (don't|do not) (offer|do|have|provide)|we (don't|do not) (offer|do|provide|have)\b", reply, re.I), reply
+    assert re.search(r"not sure|don't know|can't confirm|team (can|would|will)|details|name", reply, re.I), reply
 
 
 def test_lead_confirmation_does_not_promise_an_exact_time(chat, auto, tmp_path):
@@ -115,3 +117,30 @@ def test_lead_confirmation_does_not_promise_an_exact_time(chat, auto, tmp_path):
     assert re.search(r"aim|as soon as|around|try", result.reply, re.I), result.reply
     assert not re.search(r"(will|\bwe'll|going to) call (you )?(at|exactly) ", result.reply, re.I), result.reply
     assert not re.search(r"guarantee|promise", result.reply, re.I), result.reply
+
+
+@pytest.mark.parametrize("chosen", ["es", "pa"])
+def test_english_question_wins_over_chosen_language(chat, auto, chosen):
+    reply = ask(chat, auto, "How much is a synthetic oil change?", chosen)
+    assert not re.search(r"[\u0a00-\u0a7f]", reply), reply                       # no Gurmukhi
+    assert not re.search(r"\b(cuesta|aceite|aproximadamente|nuestro|precio)\b", reply, re.I), reply
+    assert re.search(r"\$|estimate|oil change", reply, re.I), reply
+
+
+def test_spanish_question_wins_over_chosen_english(chat, auto):
+    reply = ask(chat, auto, "¿Cuánto cuesta un cambio de aceite sintético?", "en")
+    assert re.search(r"\b(cuesta|aceite|precio|estimado|aproximadamente)\b", reply, re.I), reply
+    assert not re.search(r"\b(the|estimate|costs)\b", reply, re.I), reply
+
+
+def test_chosen_punjabi_gets_gurmukhi_answer(chat, auto):
+    reply = ask(chat, auto, "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ, ਤੁਹਾਡੀ ਦੁਕਾਨ ਕਿੱਥੇ ਹੈ?", "pa")
+    assert letters(reply, *GURMUKHI) > 10, reply
+
+
+def test_english_question_after_punjabi_turns_gets_english(chat, auto):
+    first = chat.handle(auto, "ਤੁਸੀਂ ਸ਼ਨੀਵਾਰ ਨੂੰ ਖੁੱਲ੍ਹੇ ਹੋ?", None, "test", "pa")
+    assert letters(first.reply, *GURMUKHI) > 10, first.reply
+    second = chat.handle(auto, "How much is a synthetic oil change?", first.conversation_id, "test", "pa").reply
+    assert not re.search(r"[\u0a00-\u0a7f]", second), second
+    assert re.search(r"\$|estimate|oil change", second, re.I), second
