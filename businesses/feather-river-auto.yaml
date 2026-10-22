@@ -1,0 +1,76 @@
+# DEMO BUSINESS: every detail below is fictional.
+name: Feather River Auto Repair
+timezone: America/Los_Angeles
+phone: "(530) 555-0142"
+lead_email: kennethtang.leads@gmail.com
+location:
+  address: "1475 Plumas Street, Suite B, Yuba City, CA 95991"
+  map_url: https://maps.google.com/?q=Yuba+City+CA
+hours:
+  mon: "8:00-17:30"
+  tue: "8:00-17:30"
+  wed: "8:00-17:30"
+  thu: "8:00-17:30"
+  fri: "8:00-17:30"
+  sat: "8:00-13:00"
+  sun: closed
+holidays_closed:
+  - 2026-11-26   # Thanksgiving
+  - 2026-12-25
+  - 2027-01-01
+languages: [en, es, pa]
+brand:
+  primary: "#1d3f72"
+  accent: "#f5a623"
+model: claude-haiku-5-5
+
+services:
+  - name: Oil change (conventional)
+    price: "$49-$69"
+    description: up to 5 quarts, new filter, 20-point inspection
+  - name: Oil change (full synthetic)
+    price: "$89-$129"
+    description: up to 6 quarts, new filter, 20-point inspection
+  - name: Brake pads and rotors (per axle)
+    price: "$280-$520"
+    description: parts and labor; price depends on vehicle
+  - name: Check engine light diagnostic
+    price: "$95 diagnostic fee"
+    description: scan and inspection; fee is credited toward the repair if you approve it
+  - name: California smog check
+    price: "$55-$75"
+    description: for 1976 and newer gasoline vehicles
+  - name: A/C inspection and recharge
+    price: "$150-$230"
+    description: leak check and refrigerant recharge
+  - name: Tire rotation and balance
+    price: "$40-$65"
+  - name: Battery test and replacement
+    price: "Testing is free; batteries typically $160-$280 installed"
+  - name: Pre-purchase inspection
+    price: "$120"
+    description: about 60 minutes, written summary
+  - name: Transmission fluid service
+    price: "$160-$260"
+
+faqs:
+  - q: Do I need an appointment?
+    a: Appointments are recommended, but we take walk-ins for oil changes, smog checks, and battery tests when we have room.
+  - q: Do you offer a warranty on repairs?
+    a: Yes. Repairs come with a 12-month / 12,000-mile warranty on parts and labor.
+  - q: Do you offer loaner cars or rides?
+    a: We have a free shuttle within 5 miles of the shop. We do not offer loaner cars.
+  - q: What forms of payment do you accept?
+    a: Cash, all major credit and debit cards, and we offer financing through Synchrony for repairs over $500.
+  - q: Which vehicles do you work on?
+    a: Most domestic, Asian, and European cars, SUVs, and light trucks. We do not work on diesel trucks over 10,000 lbs or on RVs.
+  - q: Do you speak Spanish or Punjabi?
+    a: Yes. Our team speaks English, Spanish, and Punjabi.
+  - q: How long does a brake job take?
+    a: Most brake jobs are done the same day if the car is dropped off by 10 AM, but the shop will confirm after inspecting the vehicle.
+
+policies:
+  - Prices listed are estimates. The final price is given after we inspect the vehicle, and we get your approval before starting any work.
+  - The $95 diagnostic fee is credited toward the repair if you approve it.
+  - Cars left after hours can be dropped in our key drop box by the front door.
+  - Unclaimed vehicles are subject to a $20 per day storage fee after 3 days from the "ready" notice.

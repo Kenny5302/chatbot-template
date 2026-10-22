@@ -1,0 +1,72 @@
+# DEMO BUSINESS: every detail below is fictional.
+name: Sutter Buttes Heating & Air
+timezone: America/Los_Angeles
+phone: "(530) 555-0187"
+lead_email: kennethtang.leads@gmail.com
+location:
+  address: "3320 Butte House Road, Yuba City, CA 95993"
+  map_url: https://maps.google.com/?q=Yuba+City+CA
+hours:
+  mon: "7:30-17:00"
+  tue: "7:30-17:00"
+  wed: "7:30-17:00"
+  thu: "7:30-17:00"
+  fri: "7:30-17:00"
+  sat: "9:00-14:00"
+  sun: closed
+holidays_closed:
+  - 2026-11-26
+  - 2026-12-25
+  - 2027-01-01
+languages: [en, es]
+brand:
+  primary: "#0e6b5c"
+  accent: "#ff8a3d"
+model: claude-haiku-5-5
+
+services:
+  - name: Seasonal tune-up (A/C or furnace)
+    price: "$99-$149"
+    description: 21-point inspection, filter check, coil and burner cleaning
+  - name: Service call / diagnostic
+    price: "$89"
+    description: credited toward the repair if you approve it
+  - name: A/C repair
+    price: "Most repairs $180-$900 depending on the part"
+  - name: Furnace repair
+    price: "Most repairs $150-$850 depending on the part"
+  - name: Refrigerant recharge
+    price: "Starting at $220"
+    description: includes leak check
+  - name: System replacement (A/C or furnace)
+    price: "Typically $5,500-$12,000 installed"
+    description: free in-home estimate
+  - name: Duct cleaning
+    price: "$350-$650"
+  - name: Smart thermostat install
+    price: "$150-$280"
+  - name: After-hours emergency service
+    price: "$175 after-hours fee plus the repair"
+    description: available nights, weekends, and holidays
+
+faqs:
+  - q: Do you offer free estimates?
+    a: Yes, free in-home estimates for system replacements. Repairs start with an $89 service call, credited toward the repair if you approve it.
+  - q: Do you offer financing?
+    a: Yes, we offer 12-month same-as-cash financing and longer monthly plans, subject to credit approval.
+  - q: What areas do you serve?
+    a: Yuba City, Marysville, Live Oak, Gridley, Wheatland, and Olivehurst.
+  - q: Do you offer a maintenance plan?
+    a: Yes. The Comfort Club is $14 per month and includes two tune-ups a year and priority scheduling.
+  - q: Do you work on all brands?
+    a: We service all major brands, and we install Carrier and Lennox systems.
+  - q: Do you offer emergency service?
+    a: Yes. After-hours emergency visits are available for no cooling in extreme heat, no heat, and refrigerant or water leaks. An after-hours fee applies.
+  - q: Are your technicians licensed?
+    a: Yes. We are a licensed and insured California contractor, and technicians are background checked.
+
+policies:
+  - Prices listed are estimates. The final price is given after the technician inspects the system, and we get your approval before starting work.
+  - Someone 18 or older must be home during the visit.
+  - Equipment installations include a 10-year parts warranty when registered, and 2 years labor.
+  - We ask for 24 hours notice to reschedule an appointment.

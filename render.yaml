@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: business-chatbot
+    runtime: python
+    plan: starter            # a persistent disk needs a paid instance
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATA_DIR
+        value: /var/data
+      - key: ANTHROPIC_API_KEY
+        sync: false          # set in the Render dashboard, never here
+      - key: GMAIL_ADDRESS
+        value: kennethtang.leads@gmail.com
+      - key: GMAIL_APP_PASSWORD
+        sync: false
+      - key: OPERATOR_BCC_EMAIL
+        sync: false
+      - key: VISITOR_HASH_SALT
+        generateValue: true
+    disk:
+      name: chatbot-data
+      mountPath: /var/data
+      sizeGB: 1

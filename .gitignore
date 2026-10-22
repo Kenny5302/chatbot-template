@@ -1,0 +1,26 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pyright/
+*.egg-info/
+
+# Runtime data (leads and conversation logs contain customer info)
+data/
+
+# Drafts from scripts/draft_business.py until reviewed
+businesses/*.draft.yaml
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Browser test artifacts
+.playwright-mcp/

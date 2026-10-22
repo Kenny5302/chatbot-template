@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Chat with {{ biz.name }}</title>
+  <link rel="stylesheet" href="/static/chat.css">
+  <style>:root { --primary: {{ biz.brand.primary }}; --accent: {{ biz.brand.accent }}; }</style>
+</head>
+<body class="{{ 'embed' if embed else '' }}">
+  <main class="chat" data-slug="{{ biz.slug }}" data-phone="{{ biz.phone }}" data-max="{{ max_chars }}">
+    <header class="bar">
+      {% if biz.brand.logo_url %}<img class="logo" src="{{ biz.brand.logo_url }}" alt="">{% endif %}
+      <div class="title">
+        <strong>{{ biz.name }}</strong>
+        <span>Virtual assistant (AI)</span>
+      </div>
+      <a class="call" href="tel:{{ biz.phone }}">Call</a>
+      {% if embed %}<button type="button" id="close" class="close" aria-label="Close chat">&#10005;</button>{% endif %}
+    </header>
+
+    <section id="log" class="log" aria-live="polite">
+      <div class="msg bot">{{ greetings[0] }}{% if greetings|length > 1 %}<div class="langs">{{ greetings[1] }}</div>{% endif %}</div>
+    </section>
+
+    <form id="form" class="composer" autocomplete="off">
+      <textarea id="input" rows="1" maxlength="{{ max_chars }}" placeholder="Type your message..." aria-label="Message"></textarea>
+      <button type="submit" id="send">Send</button>
+    </form>
+  </main>
+  <script src="/static/chat.js"></script>
+</body>
+</html>
