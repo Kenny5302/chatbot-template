@@ -30,6 +30,7 @@ cp .env.example .env                          # then edit .env yourself
 | `OPERATOR_BCC_EMAIL` | optional | Your address. Gets a BCC copy of every lead from every business. |
 | `DATA_DIR` | optional | Where leads and logs are written. Default `./data`. |
 | `VISITOR_HASH_SALT` | optional | Random string used when hashing visitor IPs in logs. |
+| `PUBLIC_BASE_URL` | optional | Public https address used in the chat-bubble script. Defaults to Render's `RENDER_EXTERNAL_URL`; set it if you use a custom domain. |
 | `TRUSTED_PROXY_HOPS` | optional | Proxies in front of the app (default 1: use the last `X-Forwarded-For` entry; 0: ignore the header). |
 | `LOG_CLIENT_IP_DEBUG` | optional | `1` logs the raw `X-Forwarded-For` for each chat request so you can verify the setting. Turn off afterwards. |
 

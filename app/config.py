@@ -22,6 +22,7 @@ class Settings:
     rate_per_minute: int = 10
     rate_per_day: int = 60
     trusted_proxy_hops: int = 1
+    public_base_url: str = ""
     log_client_ip_debug: bool = False
 
     @classmethod
@@ -35,6 +36,7 @@ class Settings:
             operator_bcc_email=env("OPERATOR_BCC_EMAIL", "").strip(),
             visitor_hash_salt=env("VISITOR_HASH_SALT", "").strip(),
             data_dir=Path(env("DATA_DIR", "").strip() or PROJECT_ROOT / "data"),
+            public_base_url=(env("PUBLIC_BASE_URL", "").strip() or env("RENDER_EXTERNAL_URL", "").strip()).rstrip("/"),
             trusted_proxy_hops=int(env("TRUSTED_PROXY_HOPS", "").strip() or 1),
             log_client_ip_debug=env("LOG_CLIENT_IP_DEBUG", "").strip() == "1",
         )

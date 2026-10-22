@@ -63,6 +63,8 @@ def create_app(
 
     if not emailer.configured:
         log.warning("Gmail is not configured: leads will be saved to disk but not emailed.")
+    if not settings.public_base_url:
+        log.warning("PUBLIC_BASE_URL is not set: the chat-bubble script will use the request's host (fine for local dev only).")
 
     app = FastAPI(title="Business Chatbot", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=APP_DIR / "static"), name="static")
@@ -119,9 +121,14 @@ def create_app(
     @app.get("/b/{slug}/widget.js")
     def widget(request: Request, slug: str):
         biz = get_business(slug)
-        chat_url = str(request.url_for("chat_page", slug=slug)) + "?embed=1"
-        js = templates.get_template("widget.js").render(biz=biz, chat_url=chat_url)
-        return Response(js, media_type="application/javascript", headers={"Cache-Control": "public, max-age=300"})
+        if settings.public_base_url:
+            # Fixed, trusted origin: not influenced by the Host header, so safe to cache publicly.
+            base, cache = settings.public_base_url, "public, max-age=300"
+        else:
+            # Local dev only: derive from the request, and make sure nothing caches it.
+            base, cache = str(request.base_url).rstrip("/"), "no-store"
+        js = templates.get_template("widget.js").render(biz=biz, chat_url=f"{base}/b/{slug}?embed=1")
+        return Response(js, media_type="application/javascript", headers={"Cache-Control": cache, "Vary": "Host"})
 
     @app.post("/api/{slug}/chat")
     def chat_endpoint(request: Request, slug: str, body: ChatRequest):

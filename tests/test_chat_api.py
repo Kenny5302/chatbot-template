@@ -163,7 +163,31 @@ def test_widget_script(make_client):
     client, _ = make_client([])
     r = client.get("/b/sutter-buttes-hvac/widget.js")
     assert r.status_code == 200 and "javascript" in r.headers["content-type"]
-    assert "/b/sutter-buttes-hvac?embed=1" in r.text and "#0e6b5c" in r.text
+    assert "http://testserver/b/sutter-buttes-hvac?embed=1" in r.text and "#0e6b5c" in r.text
+
+
+def test_widget_uses_configured_public_url_not_host_header(make_client):
+    client, _ = make_client([], public_base_url="https://chat.example.com")
+    r = client.get("/b/sutter-buttes-hvac/widget.js", headers={"Host": "evil.example.net", "X-Forwarded-Proto": "http"})
+    assert "https://chat.example.com/b/sutter-buttes-hvac?embed=1" in r.text
+    assert "evil.example.net" not in r.text
+    assert r.headers["cache-control"] == "public, max-age=300" and r.headers["vary"] == "Host"
+
+
+def test_widget_is_not_cacheable_when_url_comes_from_the_request(make_client):
+    client, _ = make_client([])  # no public_base_url: dev fallback
+    r = client.get("/b/sutter-buttes-hvac/widget.js", headers={"Host": "evil.example.net"})
+    assert "evil.example.net" in r.text           # derived from the request...
+    assert r.headers["cache-control"] == "no-store"  # ...so it must never be cached or shared
+
+
+def test_public_base_url_setting_from_env(monkeypatch):
+    from app.config import Settings
+    monkeypatch.setenv("PUBLIC_BASE_URL", "")  # blank but set, so a real .env value can not leak in
+    monkeypatch.setenv("RENDER_EXTERNAL_URL", "https://myapp.onrender.com")
+    assert Settings.from_env().public_base_url == "https://myapp.onrender.com"
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://chat.example.com/")
+    assert Settings.from_env().public_base_url == "https://chat.example.com"
 
 
 def test_healthz(make_client):
