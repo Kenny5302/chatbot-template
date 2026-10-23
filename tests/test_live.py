@@ -144,3 +144,45 @@ def test_english_question_after_punjabi_turns_gets_english(chat, auto):
     second = chat.handle(auto, "How much is a synthetic oil change?", first.conversation_id, "test", "pa").reply
     assert not re.search(r"[\u0a00-\u0a7f]", second), second
     assert re.search(r"\$|estimate|oil change", second, re.I), second
+
+
+NO_CALLBACK = r"call you back|callback|call-back|take your (details|name|number|info)|leave (us )?(a )?(message|your)|your (name|number|phone)|can take"
+CLEAR_NO = r"(don't|do not|doesn't|aren't able|not able|can't|cannot|unable|not something we)\b"
+
+
+@pytest.mark.parametrize("question", [
+    "Can you fix the dent in my bumper and repaint it?",
+    "Do you work on my RV?",
+    "Do you repair diesel trucks over 10,000 pounds?",
+])
+def test_not_offered_gets_a_clear_no_and_no_callback(chat, auto, question):
+    reply = ask(chat, auto, question)
+    assert re.search(CLEAR_NO, reply, re.I), reply
+    assert not re.search(r"not sure|can confirm|team (can|will|would) (confirm|check)", reply, re.I), reply
+    assert not re.search(NO_CALLBACK, reply, re.I), reply
+
+
+def test_not_offered_still_offers_related_help(chat, auto):
+    reply = ask(chat, auto, "Can you fix the dent in my bumper and repaint it?")
+    assert re.search(r"brake|oil|tire|diagnos|inspection|smog|battery|A/C|transmission|anything else|help with", reply, re.I), reply
+
+
+def test_hvac_not_offered_gets_a_clear_no(chat, businesses):
+    reply = ask(chat, businesses["sutter-buttes-hvac"], "Can you fix my leaking kitchen faucet?")
+    assert re.search(CLEAR_NO, reply, re.I), reply
+    assert not re.search(NO_CALLBACK, reply, re.I) and not re.search(r"not sure|can confirm", reply, re.I), reply
+
+
+def test_unknown_service_is_still_not_sure_with_what_we_do(chat, auto):
+    reply = ask(chat, auto, "Do you offer towing service?")        # in neither services nor not_offered
+    assert re.search(r"not sure|team (can|will|would) (confirm|check)", reply, re.I), reply
+    assert re.search(r"brake|oil|tire|diagnos|inspection|smog|battery|repair|maintenance", reply, re.I), reply
+
+
+@pytest.mark.parametrize("question", [
+    "What services do you offer?", "Do you do bumper repair?", "Do you offer towing service?",
+    "Can you detail my car?", "How much is a smog check?", "Do you work on diesel trucks?",
+])
+def test_never_says_listed_or_on_file(chat, auto, question):
+    reply = ask(chat, auto, question)
+    assert not re.search(r"\blisted\b|on file|in (the|our|my) system|in my (info|information|notes)", reply, re.I), reply

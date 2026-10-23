@@ -69,6 +69,7 @@ class Business(_Strict):
     hours: dict[str, str]
     holidays_closed: list[date] = Field(default_factory=list)
     services: list[Service] = Field(default_factory=list)
+    not_offered: list[str] = Field(default_factory=list)  # things the business clearly does NOT do
     faqs: list[FAQ] = Field(default_factory=list)
     policies: list[str] = Field(default_factory=list)
     languages: list[Literal["en", "es", "pa"]] = Field(default_factory=lambda: ["en"])
@@ -82,6 +83,14 @@ class Business(_Strict):
         if not v:
             raise ValueError("list at least one language")
         return v
+
+    @field_validator("not_offered")
+    @classmethod
+    def _clean_not_offered(cls, v: list[str]) -> list[str]:
+        items = [item.strip() for item in v]
+        if any(not item for item in items):
+            raise ValueError("not_offered entries can't be empty")
+        return items
 
     @field_validator("lead_email")
     @classmethod

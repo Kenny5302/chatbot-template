@@ -49,6 +49,13 @@ services:
     price: "$175 after-hours fee plus the repair"
     description: available nights, weekends, and holidays
 
+not_offered:
+  - plumbing
+  - electrical work
+  - commercial refrigeration
+  - pool and spa heaters
+  - wood stoves and fireplaces
+
 faqs:
   - q: Do you offer free estimates?
     a: Yes, free in-home estimates for system replacements. Repairs start with an $89 service call, credited toward the repair if you approve it.
@@ -66,7 +73,7 @@ faqs:
     a: Yes. We are a licensed and insured California contractor, and technicians are background checked.
 
 policies:
-  - Prices listed are estimates. The final price is given after the technician inspects the system, and we get your approval before starting work.
+  - Prices are estimates. The final price is given after the technician inspects the system, and we get your approval before starting work.
   - Someone 18 or older must be home during the visit.
   - Equipment installations include a 10-year parts warranty when registered, and 2 years labor.
   - We ask for 24 hours notice to reschedule an appointment.

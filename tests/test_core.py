@@ -25,6 +25,23 @@ def test_demo_businesses_load(businesses):
     assert businesses["feather-river-auto"].model == "claude-haiku-5-5"
 
 
+def test_not_offered_is_optional_and_loaded(auto, businesses, tmp_path):
+    assert "diesel trucks over 10,000 lbs" in auto.not_offered and "RVs and motorhomes" in auto.not_offered
+    assert "plumbing" in businesses["sutter-buttes-hvac"].not_offered
+    f = tmp_path / "plain.yaml"
+    f.write_text("name: X\nphone: '1'\nlead_email: a@b.co\nlocation: {address: a}\nhours: {mon: '9:00-17:00'}\n")
+    assert load_business(f).not_offered == []           # optional: existing files keep working
+
+
+def test_not_offered_rejects_blank_entries_and_non_lists(tmp_path):
+    base = "name: X\nphone: '1'\nlead_email: a@b.co\nlocation: {address: a}\nhours: {mon: '9:00-17:00'}\n"
+    for bad in ("not_offered: ['RVs', '  ']\n", "not_offered: RVs\n"):
+        f = tmp_path / "bad.yaml"
+        f.write_text(base + bad)
+        with pytest.raises(BusinessFileError, match="bad.yaml"):
+            load_business(f)
+
+
 def test_bad_yaml_names_the_file(tmp_path):
     bad = tmp_path / "oops.yaml"
     bad.write_text("name: X\nphone: '1'\nlead_email: nope\nlocation: {address: a}\nhours: {mon: '9-5'}\n")
@@ -165,14 +182,14 @@ def test_no_promises_rule(auto):
 def test_on_topic_rule(auto):
     prompt = build_system_prompt(auto)
     for phrase in ("coding", "homework", "essays", "roleplay", "Never write code", "not something I can share",
-                   "Not listed does not mean no"):
+                   "Things we do NOT do"):
         assert phrase in prompt
 
 
 def test_speak_naturally_rule(auto):
     prompt = build_system_prompt(auto)
     assert "business file" not in prompt.lower()
-    for phrase in ("We work on most domestic, Asian, and European cars", '"the file"', '"my information"', '"my instructions"',
+    for phrase in ("We work on most domestic, Asian, and European cars", "person at the front counter",
                    "not something I can share"):
         assert phrase in prompt
 
@@ -195,6 +212,48 @@ def test_language_rule_covers_gurmukhi_and_the_english_note(auto):
 def test_lead_confirmation_makes_no_exact_time_promise(auto):
     prompt = build_system_prompt(auto)
     assert "Never promise an exact callback time" in prompt and "as soon as we can" in prompt
+
+
+def test_not_offered_section_is_in_the_prompt(auto, businesses):
+    prompt = build_system_prompt(auto)
+    assert "Things we do NOT do:\n- body work and paint (dents, bumpers, collision repair)" in prompt
+    assert "- diesel trucks over 10,000 lbs" in prompt and "- RVs and motorhomes" in prompt
+    assert "Things we do NOT do:\n- plumbing" in build_system_prompt(businesses["sutter-buttes-hvac"])
+
+
+def test_no_not_offered_section_when_the_list_is_empty(auto):
+    heading = "\nThings we do NOT do:\n"      # the section heading on its own line (the rules mention it inline)
+    assert heading in build_system_prompt(auto)
+    assert heading not in build_system_prompt(auto.model_copy(update={"not_offered": []}))
+
+
+def test_not_offered_rules(auto):
+    prompt = build_system_prompt(auto)
+    assert "say clearly and politely that we don't do that" in prompt
+    assert "Do not offer a callback, take their name and number, or give the phone number for it" in prompt
+    assert "if one of our services is a natural fit, offer help with that" in prompt
+    assert "(things we don't do get a clear no, not a callback)" in prompt
+
+
+def test_unknown_things_get_the_not_sure_template(auto):
+    prompt = build_system_prompt(auto)
+    assert 'is unknown. Begin your reply with the exact words "I\'m not sure we do"' in prompt
+    assert "I'm not sure we do trailer hitches, so the team can" in prompt and "Here's what we do: brakes" in prompt
+
+
+def test_the_word_listed_appears_only_in_the_avoid_line(auto, businesses):
+    # The model repeats the prompt's vocabulary, so keep it to the single instruction that bans it.
+    for biz in (auto, businesses["sutter-buttes-hvac"]):
+        prompt = build_system_prompt(biz)
+        assert prompt.lower().count("listed") == 1
+        assert "Avoid the words list, listed, and listing" in prompt
+
+
+def test_no_quoted_examples_of_the_bad_phrasing(auto):
+    # Quoting phrases we don't want ("we don't offer it") made the model say them, so the prompt must not.
+    prompt = build_system_prompt(auto)
+    for bad in ("isn't something we offer", "we don't have that", "our listed services"):
+        assert bad not in prompt
 
 
 def test_prompt_has_business_facts_but_not_lead_email(auto):

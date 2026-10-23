@@ -62,6 +62,8 @@ uvicorn app.main:app --reload
    ```
    The chat page for QR codes and Google Business Profile is `https://YOUR-APP.onrender.com/b/their-slug`.
 
+`not_offered:` in a business file is an optional list of things the shop clearly doesn't do (for example `body work and paint`, `RVs`). If a customer asks about one, the bot says plainly that the shop doesn't do it and doesn't offer a callback for it. Anything that is in neither `services` nor `not_offered` is "not sure", and the bot offers to take the customer's details.
+
 To move a client to a stronger model, set `model: claude-sonnet-5-5` in their file (the default is `claude-haiku-5-5`).
 
 ## Where things are saved

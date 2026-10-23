@@ -53,6 +53,12 @@ services:
   - name: Transmission fluid service
     price: "$160-$260"
 
+not_offered:
+  - body work and paint (dents, bumpers, collision repair)
+  - diesel trucks over 10,000 lbs
+  - RVs and motorhomes
+  - motorcycles
+
 faqs:
   - q: Do I need an appointment?
     a: Appointments are recommended, but we take walk-ins for oil changes, smog checks, and battery tests when we have room.
@@ -70,7 +76,7 @@ faqs:
     a: Most brake jobs are done the same day if the car is dropped off by 10 AM, but the shop will confirm after inspecting the vehicle.
 
 policies:
-  - Prices listed are estimates. The final price is given after we inspect the vehicle, and we get your approval before starting any work.
+  - Prices are estimates. The final price is given after we inspect the vehicle, and we get your approval before starting any work.
   - The $95 diagnostic fee is credited toward the repair if you approve it.
   - Cars left after hours can be dropped in our key drop box by the front door.
   - Unclaimed vehicles are subject to a $20 per day storage fee after 3 days from the "ready" notice.

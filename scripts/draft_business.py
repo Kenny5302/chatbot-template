@@ -41,6 +41,7 @@ Rules:
 - hours values look like "8:00-17:30" (24-hour) or "closed", for mon through sun. Several ranges: "8:00-12:00, 13:00-17:00".
 - languages is a list from: en, es, pa. Include es or pa only if the site says the team speaks them.
 - Keep brand colors as hex like "#1d3f72", taken from the site's look if you can tell, otherwise leave the defaults.
+- not_offered: only things the site explicitly says the business does NOT do or does not work on. If the site says nothing like that, leave it as an empty list. Never guess.
 - Leave model as claude-haiku-5-5.
 - Output only the YAML in one ```yaml block, no other text.
 
