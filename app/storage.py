@@ -1,6 +1,7 @@
 """All file storage lives here (conversation logs and leads). To move to a database later,
 reimplement this class with the same methods; nothing else touches the disk."""
 
+import hashlib
 import json
 import re
 import threading
@@ -63,14 +64,15 @@ class FileStorage:
             yield path.stem, self.load_records(slug, path.stem)
 
     # ---- leads ---------------------------------------------------------
-    # One lead per conversation: the file name ends with the conversation's random part, so a repeat
+    # One lead per conversation: the file name ends with a hash of the conversation id, so a repeat
     # save_lead in the same conversation finds and updates the same file.
     def upsert_lead(self, slug: str, conv_id: str, lead: dict[str, Any]) -> tuple[str, str, dict[str, Any] | None]:
         """Returns (lead_id, status, previous): status is 'new', 'updated' or 'unchanged'.
         `previous` is the stored lead before the change (None when new)."""
         if not SLUG_RE.match(slug) or not valid_conversation_id(conv_id):
             raise ValueError("invalid slug or conversation id")
-        lead_id = conv_id.split("-", 1)[1]
+        # One-way hash: lead ids appear in emails and logs, and the conversation id is the visitor's secret.
+        lead_id = hashlib.sha256(f"lead:{conv_id}".encode()).hexdigest()[:12]
         now = datetime.now(timezone.utc)
         folder = self.root / slug / "leads"
         with self._lock:

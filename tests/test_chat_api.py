@@ -425,3 +425,10 @@ def test_daily_limit_defaults_and_validation(auto):
     assert auto.daily_message_limit == 300 and Settings().daily_message_limit == 1000
     with pytest.raises(Exception):
         Business.model_validate({**auto.model_dump(), "daily_message_limit": 0})
+
+
+def test_lead_id_does_not_reveal_the_conversation_id(make_client, emailer):
+    client, _ = make_client([lead_msg(), text_msg("ok")])
+    conv = client.post(URL, json={"message": "Maria, 530-555-0111, brakes, tomorrow"}).json()["conversation_id"]
+    lead_id = emailer.sent[0][2]
+    assert lead_id not in conv and conv.split("-")[1] not in lead_id
