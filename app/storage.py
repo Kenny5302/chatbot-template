@@ -57,21 +57,24 @@ class FileStorage:
             with path.open("a", encoding="utf-8") as f:
                 f.write(lines)
 
-    def add_flag(self, slug: str, conv_id: str, category: str) -> tuple[bool, int]:
+    def add_flag(self, slug: str, conv_id: str, category: str) -> tuple[bool, int, str]:
         """Index a flagged conversation (threat/crisis) in <slug>/flagged.jsonl, once per conversation and
-        category. Returns (newly_added, total flagged conversations for this business)."""
+        category. Returns (newly_added, total flagged conversations for this business, ref). `ref` is a one-way
+        hash that is safe for server logs (the conversation id is the visitor's secret); flagged.jsonl keeps
+        both, so a log line can be matched to its conversation file."""
         self._conv_path(slug, conv_id)  # validates both ids
         path = self.root / slug / "flagged.jsonl"
+        ref = hashlib.sha256(f"flag:{conv_id}".encode()).hexdigest()[:12]
         with self._lock:
             path.parent.mkdir(parents=True, exist_ok=True)
             entries = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()] if path.exists() else []
             if any(e["conversation_id"] == conv_id and e["category"] == category for e in entries):
-                return False, len({e["conversation_id"] for e in entries})
+                return False, len({e["conversation_id"] for e in entries}), ref
             entry = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                     "conversation_id": conv_id, "category": category}
+                     "conversation_id": conv_id, "ref": ref, "category": category}
             with path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(entry) + "\n")
-            return True, len({e["conversation_id"] for e in entries} | {conv_id})
+            return True, len({e["conversation_id"] for e in entries} | {conv_id}), ref
 
     def iter_conversations(self, slug: str, month: str):
         """Yield (conv_id, records) for one month ('2026-10'), for future monthly reports."""

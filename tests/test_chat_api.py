@@ -457,6 +457,8 @@ def test_flagged_threat_is_logged_indexed_and_warned_without_emailing(make_clien
     assert len(index) == 1 and body["conversation_id"] in index[0] and '"threat"' in index[0]
     warning = [m for m in caplog.messages if "FLAGGED" in m]
     assert len(warning) == 1 and "(threat)" in warning[0] and "so far: 1" in warning[0]
+    ref = json.loads(index[0])["ref"]
+    assert ref in warning[0] and body["conversation_id"] not in warning[0]   # the log never has the secret id
 
 
 def test_same_conversation_is_flagged_once_and_counts_conversations(make_client, tmp_path, caplog):

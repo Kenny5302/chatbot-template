@@ -99,10 +99,10 @@ class ChatService:
     def _flag(self, business: Business, conv_id: str, category: str, records: list[dict[str, Any]]) -> None:
         """Mark the conversation in its log and in data/<slug>/flagged.jsonl. Never emails anyone."""
         records.append({"role": "flag", "flag": category})
-        is_new, total = self.storage.add_flag(business.slug, conv_id, category)
+        is_new, total, ref = self.storage.add_flag(business.slug, conv_id, category)
         if is_new:
-            log.warning("FLAGGED conversation (%s) for %s: %s. Flagged conversations for %s so far: %d",
-                        category, business.slug, conv_id, business.slug, total)
+            log.warning("FLAGGED conversation (%s) for %s: ref %s (see data/%s/flagged.jsonl). Flagged conversations for %s so far: %d",
+                        category, business.slug, ref, business.slug, business.slug, total)
 
     def handle(
         self, business: Business, message: str, conversation_id: str | None, visitor: str, language: str | None = None
