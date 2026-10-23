@@ -17,7 +17,7 @@ from app.config import Settings
 from app.emailer import GmailEmailer
 from app.i18n import default_language, pick_language, text as ui_text, ui_for
 from app.leads import LeadService
-from app.ratelimit import RateLimiter, client_ip, visitor_hash
+from app.ratelimit import DailyCap, RateLimiter, client_ip, visitor_hash
 from app.storage import FileStorage
 
 log = logging.getLogger("chatbot")
@@ -60,6 +60,7 @@ def create_app(
     leads = leads or LeadService(storage, emailer)
     chat = ChatService(client, storage, leads, settings.max_user_turns)
     limiter = RateLimiter(settings.rate_per_minute, settings.rate_per_day)
+    daily_cap = DailyCap(settings.daily_message_limit)
     templates = Jinja2Templates(directory=APP_DIR / "templates")
 
     if not emailer.configured:
@@ -153,6 +154,13 @@ def create_app(
                 {"error": ui_text(pick_language(biz, body.language), "error_rate_limit", biz)},
                 status_code=429, headers={"Retry-After": str(retry_after)},
             )
+        scope = daily_cap.try_acquire(slug, biz.daily_message_limit, biz.timezone)
+        if scope:
+            if daily_cap.first_warning(slug, scope):
+                log.warning("Daily message limit reached (%s cap) for %s: replying with the phone number until tomorrow",
+                            scope, slug)
+            return {"conversation_id": body.conversation_id, "lead_saved": False,
+                    "reply": ui_text(pick_language(biz, body.language), "reply_daily_limit", biz)}
         result = chat.handle(
             biz, body.message, body.conversation_id, visitor_hash(ip, settings.visitor_hash_salt), body.language
         )

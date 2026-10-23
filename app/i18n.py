@@ -34,6 +34,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "error_generic": "Something went wrong. Please try again, or call us at {phone}.",
         "reply_fallback": "Sorry, I'm having trouble right now. Please call us at {phone} and we'll be glad to help.",
         "reply_turn_limit": "We've been chatting for a while, so let me connect you with the team. Please call us at {phone}.",
+        "reply_daily_limit": "We're getting a lot of messages today and can't chat right now. Please call us at {phone} and we'll be glad to help.",
         "reply_off_topic": "I can only help with questions about {name}. Can I help with our services, hours, or a callback?",
     },
     "es": {
@@ -56,6 +57,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "error_generic": "Algo salió mal. Inténtelo de nuevo o llámenos al {phone}.",
         "reply_fallback": "Lo siento, tengo problemas en este momento. Llámenos al {phone} y con gusto le ayudaremos.",
         "reply_turn_limit": "Hemos conversado un buen rato, así que le paso con el equipo. Por favor llámenos al {phone}.",
+        "reply_daily_limit": "Hoy hemos recibido muchos mensajes y no podemos chatear en este momento. Por favor llámenos al {phone} y con gusto le ayudaremos.",
         "reply_off_topic": "Solo puedo ayudar con preguntas sobre {name}. ¿Puedo ayudarle con nuestros servicios, horarios o una llamada de vuelta?",
     },
     "pa": {
@@ -78,6 +80,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "error_generic": "ਕੁਝ ਗਲਤ ਹੋ ਗਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ ਜਾਂ ਸਾਨੂੰ {phone} 'ਤੇ ਕਾਲ ਕਰੋ।",
         "reply_fallback": "ਮਾਫ਼ ਕਰਨਾ, ਮੈਨੂੰ ਇਸ ਵੇਲੇ ਮੁਸ਼ਕਲ ਆ ਰਹੀ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਸਾਨੂੰ {phone} 'ਤੇ ਕਾਲ ਕਰੋ, ਅਸੀਂ ਖੁਸ਼ੀ ਨਾਲ ਮਦਦ ਕਰਾਂਗੇ।",
         "reply_turn_limit": "ਅਸੀਂ ਕਾਫ਼ੀ ਦੇਰ ਗੱਲ ਕਰ ਲਈ ਹੈ, ਇਸ ਲਈ ਤੁਹਾਨੂੰ ਸਾਡੀ ਟੀਮ ਨਾਲ ਜੋੜਦਾ ਹਾਂ। ਕਿਰਪਾ ਕਰਕੇ ਸਾਨੂੰ {phone} 'ਤੇ ਕਾਲ ਕਰੋ।",
+        "reply_daily_limit": "ਅੱਜ ਸਾਨੂੰ ਬਹੁਤ ਸਾਰੇ ਸੁਨੇਹੇ ਮਿਲੇ ਹਨ ਅਤੇ ਅਸੀਂ ਇਸ ਵੇਲੇ ਚੈਟ ਨਹੀਂ ਕਰ ਸਕਦੇ। ਕਿਰਪਾ ਕਰਕੇ ਸਾਨੂੰ {phone} 'ਤੇ ਕਾਲ ਕਰੋ, ਅਸੀਂ ਖੁਸ਼ੀ ਨਾਲ ਮਦਦ ਕਰਾਂਗੇ।",
         "reply_off_topic": "ਮੈਂ ਸਿਰਫ਼ {name} ਬਾਰੇ ਸਵਾਲਾਂ ਵਿੱਚ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ। ਕੀ ਮੈਂ ਸਾਡੀਆਂ ਸੇਵਾਵਾਂ, ਸਮੇਂ ਜਾਂ ਵਾਪਸੀ ਕਾਲ ਬਾਰੇ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?",
     },
 }

@@ -56,8 +56,8 @@ class FakeEmailer:
     def __init__(self):
         self.sent = []
 
-    def send_lead(self, business, lead, lead_id):
-        self.sent.append((business.slug, lead, lead_id))
+    def send_lead(self, business, lead, lead_id, previous=None):
+        self.sent.append((business.slug, lead, lead_id, previous))
 
 
 @pytest.fixture

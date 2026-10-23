@@ -63,15 +63,27 @@ class FileStorage:
             yield path.stem, self.load_records(slug, path.stem)
 
     # ---- leads ---------------------------------------------------------
-    def save_lead(self, slug: str, lead: dict[str, Any]) -> str:
-        if not SLUG_RE.match(slug):
-            raise ValueError("invalid slug")
-        lead_id = uuid.uuid4().hex[:8]
+    # One lead per conversation: the file name ends with the conversation's random part, so a repeat
+    # save_lead in the same conversation finds and updates the same file.
+    def upsert_lead(self, slug: str, conv_id: str, lead: dict[str, Any]) -> tuple[str, str, dict[str, Any] | None]:
+        """Returns (lead_id, status, previous): status is 'new', 'updated' or 'unchanged'.
+        `previous` is the stored lead before the change (None when new)."""
+        if not SLUG_RE.match(slug) or not valid_conversation_id(conv_id):
+            raise ValueError("invalid slug or conversation id")
+        lead_id = conv_id.split("-", 1)[1]
         now = datetime.now(timezone.utc)
-        record = {"lead_id": lead_id, "created_at": now.isoformat(timespec="seconds"), **lead}
         folder = self.root / slug / "leads"
         with self._lock:
             folder.mkdir(parents=True, exist_ok=True)
-            path = folder / f"{now:%Y-%m-%dT%H-%M-%S}_{lead_id}.json"
-            path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
-        return lead_id
+            existing = next(iter(sorted(folder.glob(f"*_{lead_id}.json"))), None)
+            if existing is None:
+                record = {"lead_id": lead_id, "created_at": now.isoformat(timespec="seconds"), **lead}
+                path = folder / f"{now:%Y-%m-%dT%H-%M-%S}_{lead_id}.json"
+                path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+                return lead_id, "new", None
+            previous = json.loads(existing.read_text(encoding="utf-8"))
+            if all(previous.get(k) == v for k, v in lead.items()):
+                return lead_id, "unchanged", previous
+            record = {**previous, **lead, "updated_at": now.isoformat(timespec="seconds")}
+            existing.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+            return lead_id, "updated", previous

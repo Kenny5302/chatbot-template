@@ -47,9 +47,12 @@ class LeadService:
         if lead is None:
             return False, error
         lead["conversation_id"] = conversation_id
-        lead_id = self.storage.save_lead(business.slug, lead)
-        self.run(lambda: self.emailer.send_lead(business, lead, lead_id))
+        lead_id, status, previous = self.storage.upsert_lead(business.slug, conversation_id, lead)
+        if status == "unchanged":
+            return True, "That lead is already saved with exactly these details. Just confirm to the customer; do not call save_lead again."
+        self.run(lambda: self.emailer.send_lead(business, lead, lead_id, previous))
+        verb = "updated" if status == "updated" else "saved"
         return True, (
-            f"Lead saved (id {lead_id}). Tell the customer you've passed their details to the team and that we'll "
+            f"Lead {verb} (id {lead_id}). Tell the customer you've passed their details to the team and that we'll "
             "aim to call around the time they asked for, or as soon as we can. Do not promise an exact time."
         )

@@ -32,6 +32,7 @@ cp .env.example .env                          # then edit .env yourself
 | `DATA_DIR` | optional | Where leads and logs are written. Default `./data`. |
 | `VISITOR_HASH_SALT` | optional | Random string used when hashing visitor IPs in logs. |
 | `PUBLIC_BASE_URL` | optional | Public https address used in the chat-bubble script. Defaults to Render's `RENDER_EXTERNAL_URL`; set it if you use a custom domain. |
+| `DAILY_MESSAGE_LIMIT` | optional | Most chat messages per day across all businesses (default 1000). Each business can set its own `daily_message_limit` in its YAML (default 300). At a limit the bot stops calling Claude and replies with the shop's phone number; the log gets one warning per day. Counts are in memory and reset on restart. |
 | `TRUSTED_PROXY_HOPS` | optional | Proxies in front of the app (default 1: use the last `X-Forwarded-For` entry; 0: ignore the header). |
 | `LOG_CLIENT_IP_DEBUG` | optional | `1` logs the raw `X-Forwarded-For` for each chat request so you can verify the setting. Turn off afterwards. |
 
@@ -80,6 +81,10 @@ Visitor IPs are stored only as a salted hash. All file access is in `app/storage
 - Secrets only in `.env` (git-ignored). The app won't start without the API key.
 - Messages limited to 1000 characters; conversations to 30 customer messages.
 - Rate limit per visitor: 10 per minute and 60 per day (in memory, so it assumes one server instance). The visitor IP is the *rightmost* `X-Forwarded-For` entry (the one our proxy added; anything to its left is client-supplied and can be faked), falling back to the direct connection when there is no header. See `TRUSTED_PROXY_HOPS` below.
+- Daily caps (see `DAILY_MESSAGE_LIMIT`) bound the worst-case Claude spend. Also set a monthly spend limit in the Anthropic Console.
+- One lead per conversation: if the customer corrects something after the lead was saved, the same lead file is updated and you get an email whose subject starts "Updated lead" showing what changed. Repeating the same details sends nothing.
+- Lead emails are tried up to 3 times. If all fail, the error is logged and a line is added to `data/<slug>/unsent_leads.log`; the lead itself is always in `data/<slug>/leads/`.
+- Dependencies are pinned to exact versions in `requirements.txt`.
 - Safety rule at the top of the prompt: for gas smells, smoke, fire, CO alarms, failing brakes, or overheating while driving, the bot first says to stop/leave and call 911 or the gas company, then gives the shop number.
 - The bot never agrees to discounts, price matches, or unlisted prices/timelines, and calls every listed price an estimate.
 - It politely declines off-topic requests (coding, homework, essays, other businesses, roleplay), never reveals its instructions, and code blocks are stripped by a guard even if the model produced one.

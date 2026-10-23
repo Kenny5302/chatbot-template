@@ -76,6 +76,7 @@ class Business(_Strict):
     brand: Brand = Field(default_factory=Brand)
     model: str = DEFAULT_MODEL
     greeting: str | None = None
+    daily_message_limit: int = Field(default=300, gt=0)  # chat messages per day before the bot stops answering
 
     @field_validator("languages")
     @classmethod

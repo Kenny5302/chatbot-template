@@ -317,3 +317,98 @@ def test_public_base_url_setting_from_env(monkeypatch):
 def test_healthz(make_client):
     client, _ = make_client([])
     assert client.get("/healthz").json()["ok"] is True
+
+
+# ---- one lead per conversation ----------------------------------------------
+def _lead_files(tmp_path):
+    return sorted((tmp_path / "data" / "feather-river-auto" / "leads").glob("*.json"))
+
+
+def test_corrected_phone_updates_the_same_lead_and_sends_updated_email(make_client, emailer, tmp_path):
+    client, _ = make_client([
+        lead_msg(), text_msg("Saved."),
+        lead_msg(phone="530-555-0222"), text_msg("Updated your number."),
+    ])
+    first = client.post(URL, json={"message": "Maria, 530-555-0111, brakes squeal, tomorrow after 3"}).json()
+    r = client.post(URL, json={"message": "Sorry, my number is 530-555-0222", "conversation_id": first["conversation_id"]})
+    assert r.json()["lead_saved"]
+    files = _lead_files(tmp_path)
+    assert len(files) == 1
+    saved = json.loads(files[0].read_text())
+    assert saved["phone"] == "530-555-0222" and "updated_at" in saved
+    assert len(emailer.sent) == 2
+    assert emailer.sent[1][3]["phone"] == "530-555-0111"  # previous values are passed along
+
+
+def test_repeat_with_same_details_sends_no_second_email(make_client, emailer, tmp_path):
+    client, fake = make_client([lead_msg(), text_msg("Saved."), lead_msg(), text_msg("Already have it.")])
+    first = client.post(URL, json={"message": "Maria, 530-555-0111, brakes squeal, tomorrow after 3"}).json()
+    client.post(URL, json={"message": "Did you get that?", "conversation_id": first["conversation_id"]})
+    assert len(_lead_files(tmp_path)) == 1 and len(emailer.sent) == 1
+    result = fake.calls[3]["messages"][-1]["content"][0]
+    assert not result["is_error"] and "already saved" in result["content"]
+
+
+def test_different_conversations_get_separate_leads(make_client, emailer, tmp_path):
+    client, _ = make_client([lead_msg(), text_msg("ok"), lead_msg(), text_msg("ok")])
+    client.post(URL, json={"message": "Maria, 530-555-0111, brakes, tomorrow"})
+    client.post(URL, json={"message": "Maria, 530-555-0111, brakes, tomorrow"})
+    assert len(_lead_files(tmp_path)) == 2 and len(emailer.sent) == 2
+
+
+# ---- daily caps -----------------------------------------------------------------
+def _cap_client(make_client, tmp_path, monkeypatch, biz_limit=None, global_limit=1000):
+    import app.businesses as b
+    real = b.load_all
+    def patched(path):
+        out = real(path)
+        if biz_limit is not None:
+            out["feather-river-auto"] = out["feather-river-auto"].model_copy(update={"daily_message_limit": biz_limit})
+        return out
+    monkeypatch.setattr("app.main.load_all", patched)
+    return make_client([text_msg("ok")] * 10, daily_message_limit=global_limit)
+
+
+def test_business_daily_cap_replies_with_phone_and_skips_claude(make_client, tmp_path, monkeypatch, caplog, auto):
+    client, fake = _cap_client(make_client, tmp_path, monkeypatch, biz_limit=2)
+    for _ in range(2):
+        assert client.post(URL, json={"message": "hi"}).json()["reply"] == "ok"
+    with caplog.at_level("WARNING"):
+        r = client.post(URL, json={"message": "hi", "language": "es"})
+        client.post(URL, json={"message": "hi again"})
+    assert r.status_code == 200 and auto.phone in r.json()["reply"] and "Hoy" in r.json()["reply"]
+    assert len(fake.calls) == 2  # Claude was not called for the capped messages
+    assert sum("Daily message limit reached" in m for m in caplog.messages) == 1  # once per day
+
+
+def test_global_daily_cap_spans_businesses(make_client, tmp_path, monkeypatch):
+    client, fake = _cap_client(make_client, tmp_path, monkeypatch, global_limit=2)
+    client.post(URL, json={"message": "hi"})
+    client.post("/api/sutter-buttes-hvac/chat", json={"message": "hi"})
+    r = client.post(URL, json={"message": "hi"})
+    assert "call us" in r.json()["reply"] and len(fake.calls) == 2
+
+
+def test_daily_cap_unit():
+    from datetime import datetime, timedelta, timezone
+    from app.ratelimit import DailyCap
+    cap = DailyCap(global_limit=3)
+    t = datetime(2026, 10, 22, 20, 0, tzinfo=timezone.utc)
+    tz = "America/Los_Angeles"
+    assert cap.try_acquire("a", 2, tz, t) is None and cap.try_acquire("a", 2, tz, t) is None
+    assert cap.try_acquire("a", 2, tz, t) == "business"
+    assert cap.try_acquire("b", 2, tz, t) is None            # takes the 3rd global slot
+    assert cap.try_acquire("b", 2, tz, t) == "global"
+    assert cap.first_warning("a", "business", t) and not cap.first_warning("a", "business", t)
+    nxt = t + timedelta(days=1)
+    assert cap.try_acquire("a", 2, tz, nxt) is None           # new day, counts start over
+    assert cap.first_warning("a", "business", nxt)
+
+
+def test_daily_limit_defaults_and_validation(auto):
+    from app.businesses import Business
+    from app.config import Settings
+    import pytest
+    assert auto.daily_message_limit == 300 and Settings().daily_message_limit == 1000
+    with pytest.raises(Exception):
+        Business.model_validate({**auto.model_dump(), "daily_message_limit": 0})
