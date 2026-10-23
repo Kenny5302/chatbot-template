@@ -432,3 +432,57 @@ def test_lead_id_does_not_reveal_the_conversation_id(make_client, emailer):
     conv = client.post(URL, json={"message": "Maria, 530-555-0111, brakes, tomorrow"}).json()["conversation_id"]
     lead_id = emailer.sent[0][2]
     assert lead_id not in conv and conv.split("-")[1] not in lead_id
+
+
+# ---- difficult messages ---------------------------------------------------------
+def flag_msg(category="crisis", tool_id="toolu_flag"):
+    from anthropic.types import ToolUseBlock
+    return make_message(ToolUseBlock(type="tool_use", id=tool_id, name="flag_conversation",
+                                     input={"category": category}), stop_reason="tool_use")
+
+
+def test_flagged_threat_is_logged_indexed_and_warned_without_emailing(make_client, storage, emailer, tmp_path, caplog):
+    client, fake = make_client([flag_msg("threat"), text_msg("I can't help with that. If anyone is in danger, call 911.")])
+    with caplog.at_level("WARNING"):
+        r = client.post(URL, json={"message": "I'm going to hurt the mechanic"})
+    body = r.json()
+    assert body["reply"].startswith("I can't help") and not body["lead_saved"]
+    assert emailer.sent == []                                            # the owner is not emailed
+    assert any(t["name"] == "flag_conversation" for t in fake.calls[0]["tools"])
+    result = fake.calls[1]["messages"][-1]["content"][0]
+    assert result["type"] == "tool_result" and not result["is_error"]
+    records = storage.load_records("feather-river-auto", body["conversation_id"])
+    assert any(r.get("role") == "flag" and r.get("flag") == "threat" for r in records)
+    index = (tmp_path / "data" / "feather-river-auto" / "flagged.jsonl").read_text().splitlines()
+    assert len(index) == 1 and body["conversation_id"] in index[0] and '"threat"' in index[0]
+    warning = [m for m in caplog.messages if "FLAGGED" in m]
+    assert len(warning) == 1 and "(threat)" in warning[0] and "so far: 1" in warning[0]
+
+
+def test_same_conversation_is_flagged_once_and_counts_conversations(make_client, tmp_path, caplog):
+    client, _ = make_client([flag_msg(), text_msg("988."), flag_msg(), text_msg("988 again."),
+                             flag_msg(), text_msg("988.")])
+    with caplog.at_level("WARNING"):
+        first = client.post(URL, json={"message": "I want to end it all"}).json()
+        client.post(URL, json={"message": "still here", "conversation_id": first["conversation_id"]})
+        client.post(URL, json={"message": "I want to die"})                   # a second conversation
+    index = (tmp_path / "data" / "feather-river-auto" / "flagged.jsonl").read_text().splitlines()
+    assert len(index) == 2
+    warnings = [m for m in caplog.messages if "FLAGGED" in m]
+    assert len(warnings) == 2 and "so far: 2" in warnings[1]
+
+
+def test_flag_with_bad_category_is_an_error_result(make_client, tmp_path):
+    client, fake = make_client([flag_msg("complaint"), text_msg("ok")])
+    client.post(URL, json={"message": "hello"})
+    assert fake.calls[1]["messages"][-1]["content"][0]["is_error"]
+    assert not (tmp_path / "data" / "feather-river-auto" / "flagged.jsonl").exists()
+
+
+def test_difficult_messages_rule_sits_right_after_the_safety_rule(auto):
+    from app.prompts import build_system_prompt
+    p = build_system_prompt(auto)
+    assert p.index("RULE 1") < p.index("RULE 2 - DIFFICULT") < p.index("RULE 3") < p.index("ABOUT FEATHER RIVER")
+    rule = p[p.index("RULE 2 - DIFFICULT"):p.index("RULE 3")]
+    for needle in ("Complaint:", "988", "911", "flag_conversation", "never admit fault", "Never argue"):
+        assert needle.lower() in rule.lower(), needle

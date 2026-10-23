@@ -57,6 +57,22 @@ class FileStorage:
             with path.open("a", encoding="utf-8") as f:
                 f.write(lines)
 
+    def add_flag(self, slug: str, conv_id: str, category: str) -> tuple[bool, int]:
+        """Index a flagged conversation (threat/crisis) in <slug>/flagged.jsonl, once per conversation and
+        category. Returns (newly_added, total flagged conversations for this business)."""
+        self._conv_path(slug, conv_id)  # validates both ids
+        path = self.root / slug / "flagged.jsonl"
+        with self._lock:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            entries = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()] if path.exists() else []
+            if any(e["conversation_id"] == conv_id and e["category"] == category for e in entries):
+                return False, len({e["conversation_id"] for e in entries})
+            entry = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                     "conversation_id": conv_id, "category": category}
+            with path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(entry) + "\n")
+            return True, len({e["conversation_id"] for e in entries} | {conv_id})
+
     def iter_conversations(self, slug: str, month: str):
         """Yield (conv_id, records) for one month ('2026-10'), for future monthly reports."""
         folder = self.root / slug / "conversations" / month

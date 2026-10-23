@@ -45,6 +45,22 @@ LEAD_TOOL: dict[str, Any] = {
 }
 
 
+FLAG_TOOL: dict[str, Any] = {
+    "name": "flag_conversation",
+    "description": (
+        "Silently mark this conversation for the owner to review. Call it before replying when the customer "
+        "threatens violence (category threat) or mentions wanting to hurt themselves (category crisis)."
+    ),
+    "strict": True,
+    "input_schema": {
+        "type": "object",
+        "properties": {"category": {"type": "string", "enum": ["threat", "crisis"]}},
+        "required": ["category"],
+        "additionalProperties": False,
+    },
+}
+
+
 @dataclass
 class ChatResult:
     conversation_id: str
@@ -80,6 +96,14 @@ class ChatService:
         self.leads = leads
         self.max_user_turns = max_user_turns
 
+    def _flag(self, business: Business, conv_id: str, category: str, records: list[dict[str, Any]]) -> None:
+        """Mark the conversation in its log and in data/<slug>/flagged.jsonl. Never emails anyone."""
+        records.append({"role": "flag", "flag": category})
+        is_new, total = self.storage.add_flag(business.slug, conv_id, category)
+        if is_new:
+            log.warning("FLAGGED conversation (%s) for %s: %s. Flagged conversations for %s so far: %d",
+                        category, business.slug, conv_id, business.slug, total)
+
     def handle(
         self, business: Business, message: str, conversation_id: str | None, visitor: str, language: str | None = None
     ) -> ChatResult:
@@ -106,6 +130,7 @@ class ChatService:
             {"role": "user", "text": message, "content": user_content, "visitor": visitor, "language": language}
         ]
         lead_saved = False
+        flags: list[str] = []
         reply = ""
         max_tokens = MAX_TOKENS
 
@@ -115,7 +140,7 @@ class ChatService:
                     model=business.model,
                     max_tokens=max_tokens,
                     system=build_system_prompt(business),
-                    tools=[LEAD_TOOL],  # type: ignore[list-item]
+                    tools=[LEAD_TOOL, FLAG_TOOL],  # type: ignore[list-item]
                     tool_choice={"type": "auto"},
                     output_config={"effort": "low"},
                     cache_control={"type": "ephemeral"},
@@ -138,6 +163,9 @@ class ChatService:
                         if b["name"] == "save_lead":
                             ok, note = self.leads.submit(business, b["input"], conv_id)
                             lead_saved = lead_saved or ok
+                        elif b["name"] == "flag_conversation" and b["input"].get("category") in ("threat", "crisis"):
+                            ok, note = True, "Flagged. Now write your reply to the customer, following the rules."
+                            flags.append(b["input"]["category"])
                         else:
                             ok, note = False, "Unknown tool."
                         results.append({"type": "tool_result", "tool_use_id": b["id"], "content": note, "is_error": not ok})
@@ -146,6 +174,9 @@ class ChatService:
                         {"role": "assistant", "text": _text_of(blocks), "content": blocks, "usage": usage},
                         {"role": "user", "text": "", "content": results},
                     ]
+                    for category in flags:
+                        self._flag(business, conv_id, category, records)
+                    flags = []
                     continue
 
                 text = _text_of(blocks)
