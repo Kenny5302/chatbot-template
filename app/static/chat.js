@@ -39,6 +39,7 @@
     setText('subtitle', S.subtitle);
     setText('call', S.call);
     setText('greeting', S.greeting);
+    setText('privacy', S.privacy);
     setText('send', S.send);
     input.placeholder = S.placeholder;
     input.setAttribute('aria-label', S.message_label);

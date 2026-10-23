@@ -110,7 +110,7 @@ def create_app(
 
     @app.get("/healthz")
     def healthz():
-        return {"ok": True, "businesses": sorted(businesses)}
+        return {"ok": True}
 
     @app.get("/b/{slug}", response_class=HTMLResponse)
     def chat_page(request: Request, slug: str, embed: int = 0):

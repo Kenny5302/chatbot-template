@@ -84,6 +84,8 @@ Visitor IPs are stored only as a salted hash. All file access is in `app/storage
 - Daily caps (see `DAILY_MESSAGE_LIMIT`) bound the worst-case Claude spend. Also set a monthly spend limit in the Anthropic Console.
 - One lead per conversation: if the customer corrects something after the lead was saved, the same lead file is updated and you get an email whose subject starts "Updated lead" showing what changed. Repeating the same details sends nothing.
 - Lead emails are tried up to 3 times. If all fail, the error is logged and a line is added to `data/<slug>/unsent_leads.log`; the lead itself is always in `data/<slug>/leads/`.
+- A small notice under the greeting ("Chats are saved so the shop can follow up with you.", in all three languages, text in `app/i18n.py`) tells visitors chats are recorded. Have a lawyer check the wording for your clients, and decide how long to keep logs.
+- `/healthz` returns only `{"ok": true}`.
 - Dependencies are pinned to exact versions in `requirements.txt`.
 - Safety rule at the top of the prompt: for gas smells, smoke, fire, CO alarms, failing brakes, or overheating while driving, the bot first says to stop/leave and call 911 or the gas company, then gives the shop number.
 - The bot never agrees to discounts, price matches, or unlisted prices/timelines, and calls every listed price an estimate.

@@ -20,6 +20,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "Hi! I'm {name}'s virtual assistant, an AI and not a person. I can answer questions about our "
             "hours, services, and pricing, or take your details so our team can call you back. How can I help?"
         ),
+        "privacy": "Chats are saved so the shop can follow up with you.",
         "subtitle": "Virtual assistant (AI)",
         "chat_with": "Chat with {name}",
         "placeholder": "Type your message...",
@@ -43,6 +44,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "responder preguntas sobre horarios, servicios y precios, o tomar sus datos para que nuestro equipo "
             "le devuelva la llamada. ¿En qué puedo ayudarle?"
         ),
+        "privacy": "Guardamos los chats para que el negocio pueda darle seguimiento.",
         "subtitle": "Asistente virtual (IA)",
         "chat_with": "Chatear con {name}",
         "placeholder": "Escriba su mensaje...",
@@ -66,6 +68,7 @@ STRINGS: dict[str, dict[str, str]] = {
             "ਕੀਮਤਾਂ ਬਾਰੇ ਸਵਾਲਾਂ ਦੇ ਜਵਾਬ ਦੇ ਸਕਦਾ ਹਾਂ, ਜਾਂ ਤੁਹਾਡੀ ਜਾਣਕਾਰੀ ਲੈ ਸਕਦਾ ਹਾਂ ਤਾਂ ਜੋ ਸਾਡੀ ਟੀਮ ਤੁਹਾਨੂੰ ਵਾਪਸ "
             "ਫ਼ੋਨ ਕਰ ਸਕੇ। ਮੈਂ ਤੁਹਾਡੀ ਕੀ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ?"
         ),
+        "privacy": "ਚੈਟ ਸੰਭਾਲੀ ਜਾਂਦੀ ਹੈ ਤਾਂ ਜੋ ਦੁਕਾਨ ਤੁਹਾਡੇ ਨਾਲ ਦੁਬਾਰਾ ਸੰਪਰਕ ਕਰ ਸਕੇ।",
         "subtitle": "ਵਰਚੁਅਲ ਅਸਿਸਟੈਂਟ (AI)",
         "chat_with": "{name} ਨਾਲ ਚੈਟ ਕਰੋ",
         "placeholder": "ਆਪਣਾ ਸੁਨੇਹਾ ਲਿਖੋ...",

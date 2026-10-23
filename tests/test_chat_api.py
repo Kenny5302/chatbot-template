@@ -316,7 +316,20 @@ def test_public_base_url_setting_from_env(monkeypatch):
 
 def test_healthz(make_client):
     client, _ = make_client([])
-    assert client.get("/healthz").json()["ok"] is True
+    r = client.get("/healthz")
+    assert r.json() == {"ok": True}  # no client names or slugs
+    assert "feather" not in r.text and "hvac" not in r.text.lower()
+
+
+def test_privacy_notice_shown_in_every_language(make_client):
+    from app.i18n import STRINGS
+    client, _ = make_client([])
+    for lang, headers in (("en", ""), ("es", "es"), ("pa", "pa")):
+        html = client.get("/b/feather-river-auto", headers={"Accept-Language": headers} if headers else {}).text
+        assert f'<p class="privacy" id="privacy">{STRINGS[lang]["privacy"]}</p>' in html, lang
+    assert "Chats are saved so the shop can follow up with you." in STRINGS["en"]["privacy"]
+    js = client.get("/static/chat.js").text
+    assert "setText('privacy'" in js  # switches with the language buttons
 
 
 # ---- one lead per conversation ----------------------------------------------
