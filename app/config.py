@@ -25,6 +25,7 @@ class Settings:
     trusted_proxy_hops: int = 1
     public_base_url: str = ""
     log_client_ip_debug: bool = False
+    log_level: str = "INFO"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -40,5 +41,6 @@ class Settings:
             public_base_url=(env("PUBLIC_BASE_URL", "").strip() or env("RENDER_EXTERNAL_URL", "").strip()).rstrip("/"),
             daily_message_limit=int(env("DAILY_MESSAGE_LIMIT", "").strip() or 1000),
             trusted_proxy_hops=int(env("TRUSTED_PROXY_HOPS", "").strip() or 1),
+            log_level=env("LOG_LEVEL", "").strip() or "INFO",
             log_client_ip_debug=env("LOG_CLIENT_IP_DEBUG", "").strip() == "1",
         )

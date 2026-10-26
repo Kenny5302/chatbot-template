@@ -34,6 +34,7 @@ cp .env.example .env                          # then edit .env yourself
 | `PUBLIC_BASE_URL` | optional | Public https address used in the chat-bubble script. Defaults to Render's `RENDER_EXTERNAL_URL`; set it if you use a custom domain. |
 | `DAILY_MESSAGE_LIMIT` | optional | Most chat messages per day across all businesses (default 1000). Each business can set its own `daily_message_limit` in its YAML (default 300). At a limit the bot stops calling Claude and replies with the shop's phone number; the log gets one warning per day. Counts are in memory and reset on restart. |
 | `TRUSTED_PROXY_HOPS` | optional | Proxies in front of the app (default 1: use the last `X-Forwarded-For` entry; 0: ignore the header). |
+| `LOG_LEVEL` | optional | `DEBUG`, `INFO` (default), `WARNING` or `ERROR`. App log lines go to stdout with a timestamp and logger name. |
 | `LOG_CLIENT_IP_DEBUG` | optional | `1` logs the raw `X-Forwarded-For` for each chat request so you can verify the setting. Turn off afterwards. |
 
 Without the Gmail values the app still runs and saves leads to disk, but sends no email (it logs a warning).
@@ -74,7 +75,7 @@ data/<slug>/conversations/2026-10/<conversation-id>.jsonl   one line per message
 data/<slug>/leads/<timestamp>_<id>.json                      one file per lead
 ```
 
-Visitor IPs are stored only as a salted hash. All file access is in `app/storage.py`; to move to a database, reimplement that class.
+Visitor IPs are stored only as a salted hash. The start command uses `--no-access-log` so uvicorn doesn't write raw visitor IPs to the logs either (only `LOG_CLIENT_IP_DEBUG=1` does, temporarily). All file access is in `app/storage.py`; to move to a database, reimplement that class.
 
 ## Safeguards
 
@@ -107,7 +108,7 @@ The normal tests use a fake model client. The live tests check the real model's 
 ## Deploy on Render
 
 1. Push this folder to a private GitHub repo (`.env` and `data/` are git-ignored).
-2. In Render: **New > Blueprint**, pick the repo. It reads `render.yaml`. (Or create a Web Service by hand with build `pip install -r requirements.txt` and start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.)
+2. In Render: **New > Blueprint**, pick the repo. It reads `render.yaml`. (Or create a Web Service by hand with build `pip install -r requirements.txt` and start `uvicorn app.main:app --host 0.0.0.0 --port $PORT --no-access-log`.)
 3. In the service's **Environment** tab, set `ANTHROPIC_API_KEY`, `GMAIL_APP_PASSWORD`, and optionally `OPERATOR_BCC_EMAIL`.
 4. Render's disk is wiped on every deploy unless you attach a persistent disk. `render.yaml` attaches one at `/var/data` and sets `DATA_DIR=/var/data`; this needs a paid instance type. Lead emails are the backup if you skip the disk.
 5. Open `https://<your-service>.onrender.com/healthz`, then `/b/feather-river-auto`.

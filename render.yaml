@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: starter            # a persistent disk needs a paid instance
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --no-access-log
     healthCheckPath: /healthz
     envVars:
       - key: PYTHON_VERSION

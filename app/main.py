@@ -17,10 +17,11 @@ from app.config import Settings
 from app.emailer import GmailEmailer
 from app.i18n import default_language, pick_language, text as ui_text, ui_for
 from app.leads import LeadService
+from app.logging_config import configure_logging
 from app.ratelimit import DailyCap, RateLimiter, client_ip, visitor_hash
 from app.storage import FileStorage
 
-log = logging.getLogger("chatbot")
+log = logging.getLogger(__name__)
 APP_DIR = Path(__file__).resolve().parent
 MAX_MESSAGE_CHARS = 1000
 
@@ -47,6 +48,7 @@ def create_app(
     leads: LeadService | None = None,
 ) -> FastAPI:
     settings = settings or Settings.from_env()
+    configure_logging(settings.log_level)
     if client is None:
         if not settings.anthropic_api_key:
             raise RuntimeError("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and fill it in.")
