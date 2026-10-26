@@ -117,5 +117,5 @@ The normal tests use a fake model client. The live tests check the real model's 
 ## Notes
 
 - **All Spanish and Punjabi interface text is in one file, `app/i18n.py`** (greeting with the AI disclosure, buttons, error messages). Have a native speaker review and edit it there; a test checks that no language is missing a string.
-- Email failures are logged but not retried; the lead file is always written first.
+- Lead emails are retried 3 times; if all fail, see `data/<slug>/unsent_leads.log`. The lead file is always written first.
 - Monthly reports are not built yet; `FileStorage.iter_conversations(slug, "2026-10")` is the hook for them.
