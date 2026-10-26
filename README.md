@@ -115,6 +115,15 @@ The normal tests use a fake model client. The live tests check the real model's 
 6. **Re-check the rate-limit IP if Render's setup changes** (their header format isn't documented; it was verified as `client, cloudflare-ip`, so `TRUSTED_PROXY_HOPS=2`): set `LOG_CLIENT_IP_DEBUG=1`, send one chat from your phone on mobile data, and read the log line. `using=` must be your phone's public IP, and it must differ from the next visitor's. If it shows a Render or Cloudflare address, raise or lower `TRUSTED_PROXY_HOPS` until it is right, then remove the debug variable.
 7. Adding a client later: add the YAML, commit, push. Render redeploys.
 
+## Deployment status
+
+- **Live:** https://business-chatbot-re10.onrender.com (Render, Blueprint from `render.yaml`).
+- **Visitor IP:** `TRUSTED_PROXY_HOPS=2` verified on Render (`X-Forwarded-For` is `client, cloudflare-ip`; a spoofed leftmost entry is ignored). `LOG_CLIENT_IP_DEBUG` has been removed.
+- **Monitoring:** UptimeRobot checks `/healthz`.
+- **To do:**
+  - Have a native speaker review `app/i18n.py` (Spanish and Punjabi text) and `app/crisis.py` (self-harm phrases).
+  - Replace the demo businesses with real client files before printing any QR code.
+
 ## Notes
 
 - **All Spanish and Punjabi interface text is in one file, `app/i18n.py`** (greeting with the AI disclosure, buttons, error messages). Have a native speaker review and edit it there; a test checks that no language is missing a string.
