@@ -7,6 +7,7 @@ from typing import Any
 import anthropic
 
 from app.businesses import Business
+from app.crisis import detect_crisis
 from app.hours import status_line
 from app.i18n import pick_language, text as ui_text
 from app.leads import LeadService
@@ -70,6 +71,15 @@ class ChatResult:
 
 def fallback_reply(business: Business, language: str = "en") -> str:
     return ui_text(language, "reply_fallback", business)
+
+
+def error_reply(business: Business, language: str, message: str) -> tuple[str, bool]:
+    """The reply when Claude can't answer. A self-harm message also gets the 988/911 line, in the language
+    the message matched (see app/crisis.py). Returns (reply, is_crisis)."""
+    crisis_language = detect_crisis(message)
+    if crisis_language is None:
+        return fallback_reply(business, language), False
+    return f"{ui_text(crisis_language, 'crisis_line', business)}\n\n{fallback_reply(business, crisis_language)}", True
 
 
 def limit_reply(business: Business, language: str = "en") -> str:
@@ -188,25 +198,33 @@ class ChatService:
                     text, blocks = guarded, [{"type": "text", "text": guarded}]  # keep code out of history too
                 if resp.stop_reason == "refusal" or not text:
                     log.warning("No usable reply (stop_reason=%s) for %s", resp.stop_reason, business.slug)
-                    text = fallback_reply(business, language)
+                    text, crisis = error_reply(business, language, message)
+                    if crisis:
+                        self._flag(business, conv_id, "crisis", records)
                     blocks = [{"type": "text", "text": text}]  # don't keep a refused/empty turn in history
                 reply = text
                 records.append({"role": "assistant", "text": text, "content": blocks, "usage": usage,
                                 "stop_reason": resp.stop_reason})
                 break
             else:
-                reply = fallback_reply(business, language)
+                reply, crisis = error_reply(business, language, message)
+                if crisis:
+                    self._flag(business, conv_id, "crisis", records)
                 records.append({"role": "assistant", "text": reply, "content": [{"type": "text", "text": reply}],
                                 "note": "tool loop limit"})
         except anthropic.APIError as e:
             # Typed errors: log the kind, tell the customer something useful, keep the log consistent.
             kind = type(e).__name__
             log.error("Claude API error for %s: %s", business.slug, kind)
-            self.storage.append_records(business.slug, conv_id, [
+            reply, crisis = error_reply(business, language, message)
+            error_records: list[dict[str, Any]] = [
                 {"role": "user", "text": message, "visitor": visitor, "language": language},
-                {"role": "assistant", "text": fallback_reply(business, language), "error": kind},
-            ])
-            return ChatResult(conv_id, fallback_reply(business, language))
+                {"role": "assistant", "text": reply, "error": kind},
+            ]
+            if crisis:  # flagged in code, since the model never got to do it
+                self._flag(business, conv_id, "crisis", error_records)
+            self.storage.append_records(business.slug, conv_id, error_records)
+            return ChatResult(conv_id, reply)
 
         self.storage.append_records(business.slug, conv_id, records)
         return ChatResult(conv_id, reply, lead_saved)
