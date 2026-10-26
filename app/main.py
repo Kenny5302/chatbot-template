@@ -106,6 +106,13 @@ def create_app(
         log.exception("Unhandled error on %s", request.url.path)
         return JSONResponse({"error": "Something went wrong on our end. Please try again."}, status_code=500)
 
+    landing_html = (APP_DIR / "templates" / "landing.html").read_text(encoding="utf-8")
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def home():
+        # The Sutter Assist marketing page: static HTML, read once at startup.
+        return HTMLResponse(landing_html, headers={"Cache-Control": "public, max-age=300"})
+
     @app.get("/favicon.ico", include_in_schema=False)
     def favicon():
         return Response(status_code=204)

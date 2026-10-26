@@ -48,6 +48,7 @@ uvicorn app.main:app --reload
 
 - Chat page: http://127.0.0.1:8000/b/feather-river-auto (try `sutter-buttes-hvac` too)
 - Embed test: open `examples/embed.html` in a browser while the app is running.
+- Homepage (the Sutter Assist marketing page, `app/templates/landing.html`): http://127.0.0.1:8000/
 - Health check: http://127.0.0.1:8000/healthz
 
 ## Add a client

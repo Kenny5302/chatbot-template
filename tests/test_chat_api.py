@@ -488,3 +488,17 @@ def test_difficult_messages_rule_sits_right_after_the_safety_rule(auto):
     rule = p[p.index("RULE 2 - DIFFICULT"):p.index("RULE 3")]
     for needle in ("Complaint:", "988", "911", "flag_conversation", "never admit fault", "Never argue"):
         assert needle.lower() in rule.lower(), needle
+
+
+# ---- homepage -------------------------------------------------------------------
+def test_homepage_serves_the_landing_page(make_client):
+    client, _ = make_client([])
+    r = client.get("/")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+    assert "<title>Sutter Assist" in r.text and "Stop losing customers" in r.text
+    assert "/b/feather-river-auto" in r.text                       # the demo link
+    # everything else is unchanged
+    assert client.get("/healthz").json() == {"ok": True}
+    chat_page = client.get("/b/feather-river-auto")
+    assert chat_page.status_code == 200 and "Sutter Assist" not in chat_page.text
+    assert client.get("/nope").status_code == 404
