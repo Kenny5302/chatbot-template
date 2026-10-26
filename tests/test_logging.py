@@ -75,3 +75,15 @@ def test_log_level_setting_and_start_command(monkeypatch):
     root = Path(__file__).resolve().parent.parent
     assert "--no-access-log" in (root / "render.yaml").read_text()
     assert "--no-access-log" in (root / "README.md").read_text()
+
+
+def test_render_yaml_start_command_and_proxy_hops():
+    from pathlib import Path
+    import yaml
+    root = Path(__file__).resolve().parent.parent
+    service = yaml.safe_load((root / "render.yaml").read_text())["services"][0]
+    for flag in ("--no-access-log", "--no-proxy-headers"):
+        assert flag in service["startCommand"], flag
+        assert flag in (root / "README.md").read_text(), flag
+    env = {e["key"]: e for e in service["envVars"]}
+    assert env["TRUSTED_PROXY_HOPS"]["value"] == "2"   # Render is behind Cloudflare

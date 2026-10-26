@@ -33,7 +33,7 @@ cp .env.example .env                          # then edit .env yourself
 | `VISITOR_HASH_SALT` | optional | Random string used when hashing visitor IPs in logs. |
 | `PUBLIC_BASE_URL` | optional | Public https address used in the chat-bubble script. Defaults to Render's `RENDER_EXTERNAL_URL`; set it if you use a custom domain. |
 | `DAILY_MESSAGE_LIMIT` | optional | Most chat messages per day across all businesses (default 1000). Each business can set its own `daily_message_limit` in its YAML (default 300). At a limit the bot stops calling Claude and replies with the shop's phone number; the log gets one warning per day. Counts are in memory and reset on restart. |
-| `TRUSTED_PROXY_HOPS` | optional | Proxies in front of the app (default 1: use the last `X-Forwarded-For` entry; 0: ignore the header). |
+| `TRUSTED_PROXY_HOPS` | optional | Proxies in front of the app. `render.yaml` sets 2 because Render sits behind Cloudflare (default elsewhere 1: use the last `X-Forwarded-For` entry; 0: ignore the header). |
 | `LOG_LEVEL` | optional | `DEBUG`, `INFO` (default), `WARNING` or `ERROR`. App log lines go to stdout with a timestamp and logger name. |
 | `LOG_CLIENT_IP_DEBUG` | optional | `1` logs the raw `X-Forwarded-For` for each chat request so you can verify the setting. Turn off afterwards. |
 
@@ -81,7 +81,7 @@ Visitor IPs are stored only as a salted hash. The start command uses `--no-acces
 
 - Secrets only in `.env` (git-ignored). The app won't start without the API key.
 - Messages limited to 1000 characters; conversations to 30 customer messages.
-- Rate limit per visitor: 10 per minute and 60 per day (in memory, so it assumes one server instance). The visitor IP is the *rightmost* `X-Forwarded-For` entry (the one our proxy added; anything to its left is client-supplied and can be faked), falling back to the direct connection when there is no header. See `TRUSTED_PROXY_HOPS` below.
+- Rate limit per visitor: 10 per minute and 60 per day (in memory, so it assumes one server instance). The visitor IP is taken from the right end of `X-Forwarded-For` (anything to the left is client-supplied and can be faked). Render sits behind Cloudflare, so the header there is `client, cloudflare-ip` and `TRUSTED_PROXY_HOPS=2` (set in `render.yaml`) picks the client; verified on Render with a spoofed leftmost entry. The start command uses `--no-proxy-headers` so uvicorn doesn't rewrite the connection address from that header, and the fallback is the direct connection when there is no header to the direct connection when there is no header. See `TRUSTED_PROXY_HOPS` below.
 - Daily caps (see `DAILY_MESSAGE_LIMIT`) bound the worst-case Claude spend. Also set a monthly spend limit in the Anthropic Console.
 - One lead per conversation: if the customer corrects something after the lead was saved, the same lead file is updated and you get an email whose subject starts "Updated lead" showing what changed. Repeating the same details sends nothing.
 - Lead emails are tried up to 3 times. If all fail, the error is logged and a line is added to `data/<slug>/unsent_leads.log`; the lead itself is always in `data/<slug>/leads/`.
@@ -108,11 +108,11 @@ The normal tests use a fake model client. The live tests check the real model's 
 ## Deploy on Render
 
 1. Push this folder to a private GitHub repo (`.env` and `data/` are git-ignored).
-2. In Render: **New > Blueprint**, pick the repo. It reads `render.yaml`. (Or create a Web Service by hand with build `pip install -r requirements.txt` and start `uvicorn app.main:app --host 0.0.0.0 --port $PORT --no-access-log`.)
+2. In Render: **New > Blueprint**, pick the repo. It reads `render.yaml`. (Or create a Web Service by hand with build `pip install -r requirements.txt` and start `uvicorn app.main:app --host 0.0.0.0 --port $PORT --no-access-log --no-proxy-headers`.)
 3. In the service's **Environment** tab, set `ANTHROPIC_API_KEY`, `GMAIL_APP_PASSWORD`, and optionally `OPERATOR_BCC_EMAIL`.
 4. Render's disk is wiped on every deploy unless you attach a persistent disk. `render.yaml` attaches one at `/var/data` and sets `DATA_DIR=/var/data`; this needs a paid instance type. Lead emails are the backup if you skip the disk.
 5. Open `https://<your-service>.onrender.com/healthz`, then `/b/feather-river-auto`.
-6. **Check the rate-limit IP once** (Render doesn't document the header format): set `LOG_CLIENT_IP_DEBUG=1`, send one chat from your phone on mobile data, and read the log line. `using=` must be your phone's public IP, and it must differ from the next visitor's. If it shows a Render or Cloudflare address, raise or lower `TRUSTED_PROXY_HOPS` until it is right, then remove the debug variable.
+6. **Re-check the rate-limit IP if Render's setup changes** (their header format isn't documented; it was verified as `client, cloudflare-ip`, so `TRUSTED_PROXY_HOPS=2`): set `LOG_CLIENT_IP_DEBUG=1`, send one chat from your phone on mobile data, and read the log line. `using=` must be your phone's public IP, and it must differ from the next visitor's. If it shows a Render or Cloudflare address, raise or lower `TRUSTED_PROXY_HOPS` until it is right, then remove the debug variable.
 7. Adding a client later: add the YAML, commit, push. Render redeploys.
 
 ## Notes
