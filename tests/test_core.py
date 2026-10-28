@@ -122,13 +122,13 @@ def test_ui_only_includes_the_businesss_languages(auto, businesses):
     full = ui_for(auto)
     assert full["order"] == ["en", "es", "pa"] and set(full["strings"]) == {"en", "es", "pa"}
     assert full["labels"] == {"en": "English", "es": "Español", "pa": "ਪੰਜਾਬੀ"}
-    hvac = ui_for(businesses["sutter-buttes-hvac"])
+    hvac = ui_for(auto.model_copy(update={"languages": ["en", "es"]}))
     assert hvac["order"] == ["en", "es"] and "pa" not in hvac["strings"] and "pa" not in hvac["labels"]
     assert "(530) 555-0142" in full["strings"]["es"]["error_network"] and "1000" in full["strings"]["pa"]["error_invalid"]
 
 
-def test_default_language_follows_browser_when_supported(auto, businesses):
-    hvac = businesses["sutter-buttes-hvac"]
+def test_default_language_follows_browser_when_supported(auto):
+    hvac = auto.model_copy(update={"languages": ["en", "es"]})
     assert default_language(auto, "es-MX,es;q=0.9,en;q=0.8") == "es"
     assert default_language(auto, "pa-IN,pa;q=0.9") == "pa"
     assert default_language(auto, "fr-FR,fr;q=0.9,pa;q=0.5") == "pa"                # first supported by preference
@@ -143,9 +143,9 @@ def test_business_without_english_falls_back_to_its_first_language(auto):
     assert default_language(spanish_only, "fr") == "es" and pick_language(spanish_only, "en") == "es"
 
 
-def test_pick_language_rejects_unsupported(auto, businesses):
+def test_pick_language_rejects_unsupported(auto):
     assert pick_language(auto, "pa") == "pa" and pick_language(auto, "xx") == "en" and pick_language(auto, None) == "en"
-    assert pick_language(businesses["sutter-buttes-hvac"], "pa") == "en"
+    assert pick_language(auto.model_copy(update={"languages": ["en", "es"]}), "pa") == "en"
 
 
 def test_language_note_defaults_to_selection_but_lets_the_message_win():

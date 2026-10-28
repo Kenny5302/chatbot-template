@@ -1,9 +1,23 @@
 import json
+import re
+from pathlib import Path
+
+import pytest
 
 from tests.conftest import api_error, lead_msg, text_msg, make_message
 from anthropic.types import TextBlock
 
 URL = "/api/feather-river-auto/chat"
+
+
+@pytest.fixture
+def en_es_client(make_client, tmp_path):
+    """Builds a client whose only business, 'en-es', offers English and Spanish but not Punjabi."""
+    biz_dir = tmp_path / "en-es-biz"
+    biz_dir.mkdir()
+    src = (Path(__file__).parent.parent / "businesses" / "feather-river-auto.yaml").read_text()
+    (biz_dir / "en-es.yaml").write_text(re.sub(r"^languages:.*$", "languages: [en, es]", src, flags=re.M))
+    return lambda script: make_client(script, businesses_dir=biz_dir)
 
 
 def test_chat_reply_and_logging(make_client, storage):
@@ -164,11 +178,11 @@ def buttons(html):
     return re.findall(r'<button type="button" class="lang" data-lang="(\w+)" lang="\w+" aria-pressed="(true|false)">([^<]+)</button>', html)
 
 
-def test_language_buttons_only_for_supported_languages(make_client):
+def test_language_buttons_only_for_supported_languages(make_client, en_es_client):
     client, _ = make_client([])
     assert buttons(client.get("/b/feather-river-auto").text) == [
         ("en", "true", "English"), ("es", "false", "Español"), ("pa", "false", "ਪੰਜਾਬੀ")]
-    hvac = client.get("/b/sutter-buttes-hvac").text
+    hvac = en_es_client([])[0].get("/b/en-es").text
     assert [(c, label) for c, _, label in buttons(hvac)] == [("en", "English"), ("es", "Español")]
     assert "ਪੰਜਾਬੀ" not in hvac                      # no Punjabi button and no Punjabi strings in the page
 
@@ -191,8 +205,8 @@ def test_page_language_follows_accept_language(make_client):
     assert '<html lang="en">' in en and "Type your message..." in en and ">Send</button>" in en
 
 
-def test_unsupported_browser_language_falls_back_to_english(make_client):
-    r = make_client([])[0].get("/b/sutter-buttes-hvac", headers={"Accept-Language": "pa-IN,pa"})
+def test_unsupported_browser_language_falls_back_to_english(en_es_client):
+    r = en_es_client([])[0].get("/b/en-es", headers={"Accept-Language": "pa-IN,pa"})
     assert '<html lang="en">' in r.text and r.headers["vary"] == "Accept-Language"
 
 
@@ -231,11 +245,11 @@ def test_english_message_under_spanish_choice_still_carries_the_rule(make_client
     assert "Reply in the language the customer's latest message is written in" in note and "Only if the message is too short" in note
 
 
-def test_missing_or_unsupported_language_defaults_to_english(make_client):
-    client, fake = make_client([text_msg("ok"), text_msg("ok"), text_msg("ok")])
-    client.post(URL, json={"message": "hi"})
-    client.post(URL, json={"message": "hi", "language": "xx"})
-    client.post("/api/sutter-buttes-hvac/chat", json={"message": "hi", "language": "pa"})   # HVAC has no Punjabi
+def test_missing_or_unsupported_language_defaults_to_english(en_es_client):
+    client, fake = en_es_client([text_msg("ok"), text_msg("ok"), text_msg("ok")])
+    client.post("/api/en-es/chat", json={"message": "hi"})
+    client.post("/api/en-es/chat", json={"message": "hi", "language": "xx"})
+    client.post("/api/en-es/chat", json={"message": "hi", "language": "pa"})   # this business has no Punjabi
     assert all("reply in English, the language they chose" in c["messages"][0]["content"][1]["text"] for c in fake.calls)
 
 
@@ -275,12 +289,12 @@ def widget_labels(js):
     return json.loads(found.group(1))   # the script embeds them as JSON
 
 
-def test_widget_label_is_available_in_each_supported_language(make_client):
+def test_widget_label_is_available_in_each_supported_language(make_client, en_es_client):
     client, _ = make_client([])
     labels = widget_labels(client.get("/b/feather-river-auto/widget.js").text)
     assert labels == {"en": "Chat with Feather River Auto Repair", "es": "Chatear con Feather River Auto Repair",
                       "pa": "Feather River Auto Repair ਨਾਲ ਚੈਟ ਕਰੋ"}
-    assert set(widget_labels(client.get("/b/sutter-buttes-hvac/widget.js").text)) == {"en", "es"}
+    assert set(widget_labels(en_es_client([])[0].get("/b/en-es/widget.js").text)) == {"en", "es"}
 
 
 def test_widget_script(make_client):
