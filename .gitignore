@@ -24,3 +24,6 @@ businesses/*.draft.yaml
 
 # Browser test artifacts
 .playwright-mcp/
+
+# Personal notes
+TODO.local.md

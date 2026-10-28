@@ -141,7 +141,7 @@ The normal tests use a fake model client. The live tests check the real model's 
 
 ## Deploy on Render
 
-1. Push this folder to a private GitHub repo (`.env` and `data/` are git-ignored).
+1. Push this folder to your own GitHub repo (`.env` and `data/` are git-ignored, so secrets and customer data never leave your machine).
 2. In Render: **New > Blueprint**, pick the repo. It reads `render.yaml`. (Or create a Web Service by hand with build `pip install -r requirements.txt` and start `uvicorn app.main:app --host 0.0.0.0 --port $PORT --no-access-log --no-proxy-headers`.)
 3. In the service's **Environment** tab, set `ANTHROPIC_API_KEY`, `GMAIL_APP_PASSWORD`, and optionally `OPERATOR_BCC_EMAIL`.
 4. Render's disk is wiped on every deploy unless you attach a persistent disk. `render.yaml` attaches one at `/var/data` and sets `DATA_DIR=/var/data`; this needs a paid instance type. Lead emails are the backup if you skip the disk.
