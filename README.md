@@ -1,4 +1,37 @@
-# Business Chatbot Template
+# Sutter Assist
+
+Sutter Assist is an AI chat assistant for small local businesses such as auto shops and HVAC companies. When the owner is under a car or on a roof and can't pick up the phone, customers still get answers about hours, services and estimated prices at any hour, in English, Spanish or Punjabi, and anyone who wants a call back is captured as a lead and emailed to the owner. One FastAPI app serves many businesses, and onboarding a new client means adding one YAML file, not writing code.
+
+- **Live demo:** [Feather River Auto Repair](https://business-chatbot-re10.onrender.com/b/feather-river-auto) (a made-up shop; try it on your phone)
+- **Landing page:** https://business-chatbot-re10.onrender.com
+
+| Chat on a phone (390px) | Landing page (desktop) |
+|---|---|
+| <img src="docs/screenshots/chat-mobile.png" alt="Feather River Auto Repair chat on a phone, with English, Spanish and Punjabi language buttons" width="300"> | <img src="docs/screenshots/landing-desktop.png" alt="Sutter Assist landing page" width="600"> |
+
+## Highlights
+
+- **Multi-business config:** one YAML file per client, validated at startup; a bad file stops startup instead of shipping a broken bot.
+- **Claude tool use for lead capture:** the model calls a `save_lead` tool, the server validates it, writes the lead to disk first, then emails the owner (3 retries, with a fallback log).
+- **English, Spanish and Punjabi:** replies match the customer's language, with a language switcher and all UI text in one file for native-speaker review.
+- **Safety and crisis handling:** AI disclosure up front, emergency instructions (gas, fire, CO, brakes) before sales, 988/911 for self-harm, no invented prices or discounts, off-topic requests declined, and flagged conversations logged.
+- **200+ tests plus live model evals:** a fast suite with a fake model client, and an opt-in suite that checks the real model on emergencies, off-topic requests and discount pressure.
+- **Production deploy:** Render behind Cloudflare, per-visitor rate limits, global and per-business daily caps, salted IP hashing, and uptime monitoring.
+
+**Tech stack:** Python 3, FastAPI, Uvicorn, Pydantic, Jinja2, YAML config, Anthropic Claude API (tool use), Gmail SMTP, pytest, pyright, Render.
+
+## How a chat works
+
+1. The visitor opens `/b/<slug>` (or the embedded bubble) and the page loads that business's name, phone, hours and languages from its YAML file.
+2. Each message is checked first: length limit, per-visitor rate limit, daily caps, and a self-harm phrase check (used to flag the conversation and to keep 988/911 in the fallback reply if the model API fails).
+3. The server builds a system prompt from the business file (services, prices, hours, open or closed right now, safety rules) and sends the conversation to Claude.
+4. Claude answers only from that file, in the customer's language. If the customer wants a callback it calls the `save_lead` tool instead of replying with free text.
+5. The server validates the tool call, saves the lead file, then emails the owner in the background and returns the result to Claude so it can confirm to the customer.
+6. Replies pass output guards (code blocks stripped, friendly fallbacks with the shop's phone number on errors), and the conversation is appended to a per-business log for future monthly reports.
+
+---
+
+# Documentation
 
 One FastAPI app that serves an AI chat assistant for many small businesses. Each business is a single YAML file in `businesses/`. Adding a client means adding a file, not changing code.
 
@@ -82,7 +115,7 @@ Visitor IPs are stored only as a salted hash. The start command uses `--no-acces
 
 - Secrets only in `.env` (git-ignored). The app won't start without the API key.
 - Messages limited to 1000 characters; conversations to 30 customer messages.
-- Rate limit per visitor: 10 per minute and 60 per day (in memory, so it assumes one server instance). The visitor IP is taken from the right end of `X-Forwarded-For` (anything to the left is client-supplied and can be faked). Render sits behind Cloudflare, so the header there is `client, cloudflare-ip` and `TRUSTED_PROXY_HOPS=2` (set in `render.yaml`) picks the client; verified on Render with a spoofed leftmost entry. The start command uses `--no-proxy-headers` so uvicorn doesn't rewrite the connection address from that header, and the fallback is the direct connection when there is no header to the direct connection when there is no header. See `TRUSTED_PROXY_HOPS` below.
+- Rate limit per visitor: 10 per minute and 60 per day (in memory, so it assumes one server instance). The visitor IP is taken from the right end of `X-Forwarded-For` (anything to the left is client-supplied and can be faked). Render sits behind Cloudflare, so the header there is `client, cloudflare-ip` and `TRUSTED_PROXY_HOPS=2` (set in `render.yaml`) picks the client; verified on Render with a spoofed leftmost entry. The start command uses `--no-proxy-headers` so uvicorn doesn't rewrite the connection address from that header, and the fallback is the direct connection when there is no header. See `TRUSTED_PROXY_HOPS` below.
 - Daily caps (see `DAILY_MESSAGE_LIMIT`) bound the worst-case Claude spend. Also set a monthly spend limit in the Anthropic Console.
 - One lead per conversation: if the customer corrects something after the lead was saved, the same lead file is updated and you get an email whose subject starts "Updated lead" showing what changed. Repeating the same details sends nothing.
 - Lead emails are tried up to 3 times. If all fail, the error is logged and a line is added to `data/<slug>/unsent_leads.log`; the lead itself is always in `data/<slug>/leads/`.
@@ -130,3 +163,7 @@ The normal tests use a fake model client. The live tests check the real model's 
 - **All Spanish and Punjabi interface text is in one file, `app/i18n.py`** (greeting with the AI disclosure, buttons, error messages). Have a native speaker review and edit it there; a test checks that no language is missing a string.
 - Lead emails are retried 3 times; if all fail, see `data/<slug>/unsent_leads.log`. The lead file is always written first.
 - Monthly reports are not built yet; `FileStorage.iter_conversations(slug, "2026-10")` is the hook for them.
+
+---
+
+Copyright (c) 2026 Kenneth Tang. All rights reserved.
