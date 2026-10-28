@@ -15,7 +15,7 @@ Sutter Assist is an AI chat assistant for small local businesses such as auto sh
 - **Claude tool use for lead capture:** the model calls a `save_lead` tool, the server validates it, writes the lead to disk first, then emails the owner (3 retries, with a fallback log).
 - **English, Spanish and Punjabi:** replies match the customer's language, with a language switcher and all UI text in one file for native-speaker review.
 - **Safety and crisis handling:** AI disclosure up front, emergency instructions (gas, fire, CO, brakes) before sales, 988/911 for self-harm, no invented prices or discounts, off-topic requests declined, and flagged conversations logged.
-- **200+ tests plus live model evals:** a fast suite with a fake model client, and an opt-in suite that checks the real model on emergencies, off-topic requests and discount pressure.
+- **150+ tests plus live model evals:** a fast suite with a fake model client, and an opt-in suite that checks the real model on emergencies, off-topic requests and discount pressure.
 - **Production deploy:** Render behind Cloudflare, per-visitor rate limits, global and per-business daily caps, salted IP hashing, and uptime monitoring.
 
 **Tech stack:** Python 3, FastAPI, Uvicorn, Pydantic, Jinja2, YAML config, Anthropic Claude API (tool use), Gmail SMTP, pytest, pyright, Render.
