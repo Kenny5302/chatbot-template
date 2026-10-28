@@ -18,7 +18,7 @@ holidays_closed:
   - 2026-11-26
   - 2026-12-25
   - 2027-01-01
-languages: [en, es]
+languages: [en, es, pa]
 brand:
   primary: "#0e6b5c"
   accent: "#ff8a3d"
