@@ -154,9 +154,6 @@ The normal tests use a fake model client. The live tests check the real model's 
 - **Live:** https://business-chatbot-re10.onrender.com (Render, Blueprint from `render.yaml`).
 - **Visitor IP:** `TRUSTED_PROXY_HOPS=2` verified on Render (`X-Forwarded-For` is `client, cloudflare-ip`; a spoofed leftmost entry is ignored). `LOG_CLIENT_IP_DEBUG` has been removed.
 - **Monitoring:** UptimeRobot checks `/healthz`.
-- **To do:**
-  - Have a native speaker review `app/i18n.py` (Spanish and Punjabi text) and `app/crisis.py` (self-harm phrases).
-  - Replace the demo businesses with real client files before printing any QR code.
 
 ## Notes
 
